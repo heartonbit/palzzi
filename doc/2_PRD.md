@@ -11,7 +11,7 @@
 ## 2. 개발 단계별 로드맵 (Phased Roadmap)
 
 ### Phase 1: MVP (최소 기능 제품) - 본 문서의 범위
-* **핵심 기능:** 3대 공예(미산가, 마크라메, 쿠미히모) 핵심 템플릿 라이브러리 구축, 2D 인터랙티브 플레이어(재생/일시정지/스텝 조절), 기호화된 도안(Pattern Chart) 및 완성 시각화(Finished View) 동시 렌더링, JSON 기반 로컬 저장, PNG/SVG 이미지 내보내기.
+* **핵심 기능:** 3대 공예(미산가, 마크라메, 쿠미히모)  중 쿠미히모 템플릿 라이브러리 구축, 2D 인터랙티브 플레이어(재생/일시정지/스텝 조절), 기호화된 도안(Pattern Chart) 및 완성 시각화(Finished View) 동시 렌더링, JSON 기반 로컬 저장, PNG/SVG 이미지 내보내기.
 * **그래픽스:** 2D Flat Graphics (HTML5 Canvas 또는 라이브러리 활용).
 
 ### Phase 2: 확장 단계 (Future Scope)
@@ -22,20 +22,8 @@
 
 ## 3. 공예별 핵심 메커니즘 및 기능 요구사항
 
-### 3.1 미산가 (Misanga / Friendships Bracelets)
-* **일반 패턴 (Normal Pattern):** * **메커니즘:** 줄 수에 따라 교차점(Node)이 격자 구조를 이룸. 홀수 행과 짝수 행의 매듭 위치가 엇갈리는 구조(Alternate Grid).
-  * **매듭 유형:** 4가지 기본 매듭(Forward, Backward, Forward-Backward, Backward-Forward)의 연산 결과를 2D 선과 방향 기호(↗, ↖, ↪, ↩)로 시각화. 매듭 후 두 실의 위치가 교환되는 상태(State) 관리 필수.
-* **알파 패턴 (Alpha Pattern):**
-  * **메커니즘:** 여러 가닥의 배경실(Base Threads)을 고정하고, 하나의 선도실(Leading Thread)을 좌우로 왕복시키며 매듭을 짓는 픽셀 아트 구조.
-  * **시각화:** 가로줄(Row) 단위의 직조 연산 결과를 직관적인 색상 블록 형태로 바인딩.
-
-### 3.2 마크라메 (Macramé)
-* **지원 매듭 범위 (MVP):** 줄걸기(Lark's Head Knot), 평매듭(Square Knot), 감아매기(Half Hitch) 3종의 조합.
-* **메커니즘:** 노드(Node) 기반 그래프 구조. 특정 매듭이 지어질 때 기둥줄(Core Thread) 역할을 하는 실과 실제 엮는줄(Working Thread) 역할을 하는 실의 위상 관계를 정의.
-* **시각화:** 상단 고정 바(Bar)에서 하단으로 확장되는 트리 형태의 2D 구조선 구조. 각 매듭 단위를 고유의 기하학적 블록 그래픽으로 변환하여 표현.
-
-### 3.3 쿠미히모 (Kumihimo)
-* **지원 디스크 범위 (MVP):** 원형 디스크(Round Disk) 기반의 기본 8줄 및 16줄 브레이딩(Braiding) 패턴.
+### 3.1 쿠미히모 (Kumihimo)
+* **지원 디스크 범위 (MVP):** 원형 디스크(Round Disk) 기반의 기본 8줄 및 16줄, 20줄, 24줄, 28줄, 32줄 브레이딩(Braiding) 패턴.
 * **메커니즘:** 슬롯(Slot) 기반 원형 순열 데이터 모델. 예: '32번 슬롯의 실을 17번 슬롯으로, 16번 슬롯의 실을 1번 슬롯으로 이동'하는 상호 치환 연산 규칙 적용.
 * **시각화:** 2D 원형 디스크 인터페이스 상에서 실이 배치된 상태를 보여주고, 현재 움직여야 하는 실과 이동 방향을 가이드 화살표(Arrow Animation)로 연출.
 
@@ -106,4 +94,4 @@
 
 * **State Management:** Zustand 또는 Redux Toolkit (플레이어 스텝 변화에 따른 실 색상 및 위상 배열 상태 추적용)
 
-* **Storage & Sharing Infrastructure (MVP 선택):** Supabase 또는 Firebase (서버리스 환경에서 사용자 패턴 JSON 데이터 저장 및 공유 링크 메타데이터 관리를 빠르게 구현하는 데 최적화)
+* **Storage & Sharing Infrastructure (MVP 선택):** Firebase (서버리스 환경에서 사용자 패턴 JSON 데이터 저장 및 공유 링크 메타데이터 관리를 빠르게 구현하는 데 최적화)
