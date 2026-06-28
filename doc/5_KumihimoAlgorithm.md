@@ -20,7 +20,7 @@ disk[25] = "여덟번째 실 색상"
 nThreads = 실개수
 threadColors = [...]
 
-distance = 32 / 실개수 / 2
+distance = 32 / (실개수 / 2)
 nPairs = nThreads/2
 
 for loop i가 0부터 nPairs까지

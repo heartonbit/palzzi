@@ -1,0 +1,22 @@
+{
+  "name": "palzzi",
+  "version": "1.0.0",
+  "description": "Kumihimo Braid Simulator - Web-based application for simulating round kumihimo braiding patterns",
+  "main": "src/engine/kumihimo.js",
+  "scripts": {
+    "test": "node src/engine/kumihimo.test.js",
+    "start": "npx serve .",
+    "start:dev": "npx live-server . --port=3000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heartonbit/palzzi.git"
+  },
+  "keywords": ["kumihimo", "braid", "simulator", "craft", "weaving"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/heartonbit/palzzi/issues"
+  },
+  "homepage": "https://github.com/heartonbit/palzzi#readme"
+}

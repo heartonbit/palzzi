@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Palzzi - 쿠미히모 시뮬레이터</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Bar -->
+    <header id="topbar">
+      <h1 class="logo">🎀 Palzzi</h1>
+      <span class="subtitle">쿠미히모 시뮬레이터</span>
+      <div class="top-actions">
+        <button id="btn-export-png" class="btn btn-sm">PNG 저장</button>
+        <button id="btn-export-svg" class="btn btn-sm">SVG 저장</button>
+        <button id="btn-export-json" class="btn btn-sm">JSON 저장</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <!-- Left Panel: Settings & Controls -->
+      <aside id="left-panel">
+        <section class="panel-section">
+          <h3>템플릿</h3>
+          <select id="template-select"></select>
+          <button id="btn-apply-template" class="btn btn-primary btn-full">적용</button>
+        </section>
+
+        <section class="panel-section">
+          <h3>실 개수</h3>
+          <div class="thread-count-options">
+            <button data-count="4" class="btn btn-thread-count">4줄</button>
+            <button data-count="8" class="btn btn-thread-count active">8줄</button>
+            <button data-count="12" class="btn btn-thread-count">12줄</button>
+            <button data-count="16" class="btn btn-thread-count">16줄</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h3>색상 편집</h3>
+          <div id="color-editor">
+            <p class="hint">디스크의 실을 클릭하여 선택하세요</p>
+            <div id="color-slots"></div>
+            <div class="color-picker-row">
+              <input type="color" id="color-picker" value="#3498DB">
+              <button id="btn-set-color" class="btn">변경</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h3>저장 및 공유</h3>
+          <button id="btn-save-local" class="btn btn-full">로컬 저장</button>
+          <button id="btn-load-local" class="btn btn-full">불러오기</button>
+          <button id="btn-share-url" class="btn btn-full">공유 URL 생성</button>
+        </section>
+      </aside>
+
+      <!-- Center: Workspace -->
+      <main id="center-panel">
+        <div class="view-tabs">
+          <button class="tab active" data-view="disk">디스크 뷰</button>
+          <button class="tab" data-view="chart">도안 차트</button>
+        </div>
+        
+        <div id="workspace">
+          <canvas id="disk-canvas"></canvas>
+          <canvas id="chart-canvas" style="display:none"></canvas>
+        </div>
+
+        <!-- Playback Controls -->
+        <div id="playback-controls">
+          <button id="btn-first" class="btn btn-icon" title="처음으로">⏮</button>
+          <button id="btn-prev" class="btn btn-icon" title="이전 단계">◀</button>
+          <button id="btn-play" class="btn btn-icon" title="재생/일시정지">▶</button>
+          <button id="btn-next" class="btn btn-icon" title="다음 단계">▶</button>
+          <button id="btn-last" class="btn btn-icon" title="끝으로">⏭</button>
+          <span id="step-indicator">0 / 0</span>
+          <span id="speed-label">속도:</span>
+          <select id="speed-select">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+          </select>
+          <div id="progress-bar">
+            <div id="progress-fill"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Bottom: Finished Preview -->
+    <footer id="bottom-panel">
+      <h3>완성본 미리보기</h3>
+      <canvas id="preview-canvas"></canvas>
+    </footer>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "./engine/kumihimo.js": "./src/engine/kumihimo.js",
+      "./templates/templates.js": "./src/templates/templates.js"
+    }
+  }
+  </script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
