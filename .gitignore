@@ -22,3 +22,38 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Security and API Keys (Credentials)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+certs/
+credentials.json
+service-account.json
+*firebase-key.json
+*secret*.json
+.runtimeconfig.json
+
+# Firebase Hosting & CLI local caches
+.firebase/
+firebase-debug.log
+.firebaserc
+
+# Build and Cache Directories
+.agents/
+skills-lock.json
+.vite/
+dist/
+dist-ssr/
+node_modules/
+coverage/
+.nyc_output/
+.npm-global/
+
+# System Files
+Thumbs.db
+desktop.ini
+.DS_Store
+

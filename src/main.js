@@ -1,12 +1,147 @@
 import { KumihimoDisk } from './engine/kumihimo.js';
 import { KUMIHIMO_TEMPLATES } from './templates/templates.js';
 
+// --- Multilingual i18n Translations Dictionary (doc/2_PRD) ---
+const TRANSLATIONS = {
+  ko: {
+    title: "Palzzi - 쿠미히모 2D 시뮬레이터",
+    logoTitle: "Palzzi",
+    jsonSave: "JSON 저장",
+    jsonLoad: "JSON 불러오기",
+    pngChart: "도안 (PNG)",
+    pngBraid: "완성본 (PNG)",
+    templateSelect: "템플릿 선택",
+    patternTemplate: "패턴 템플릿",
+    metaThreads: " 가닥",
+    metaDifficulty: "난이도: ",
+    diffEasy: "쉬움",
+    diffMedium: "보통",
+    diffHard: "어려움",
+    colorCustomizer: "실 색상 커스텀",
+    colorPickerLabel: "선택된 실 색상:",
+    colorPresetsLabel: "프리셋 컬러:",
+    managePresetsBtn: "관리",
+    sectionHint: "디스크 위의 실이나 아래 리스트를 누른 뒤 색상을 변경하세요.",
+    storageShare: "저장 및 공유",
+    saveLocalBtn: "내 보관함에 저장 (Browser)",
+    loadLocalBtn: "보관함 불러오기",
+    shareUrlBtn: "공유 링크 복사 (URL)",
+    stepLabel: "PROGRESS:",
+    stepCounterPrefix: "스텝",
+    autoplaySpeed: "배속:",
+    maxLenLabel: "최대 길이 (Rows):",
+    tabVirtualBraid: "3D 가상 완성본 2D 뷰",
+    tabPatternChart: "기호 도안 차트 (Pattern Chart)",
+    tabVirtualDesc: "현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.",
+    tabChartDesc: "실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)",
+    zoomLabel: "화면 배율:",
+    pitchLabel: "땋임 촘촘함:",
+    dragHint: "마우스로 실을 드래그하거나 아래 컨트롤러를 이용해 직조하세요.",
+    toastSaveLocal: "브라우저 내 보관함에 저장되었습니다!",
+    toastLoadLocal: "보관함 데이터를 성공적으로 복구했습니다!",
+    toastNoLocal: "저장된 보관함 데이터가 없습니다.",
+    toastShareUrl: "공유 링크가 클립보드에 복사되었습니다!",
+    toastExportJson: "JSON 파일 저장 완료!",
+    toastImportJson: "JSON 설정 불러오기 완료!",
+    toastImportError: "오류: 올바르지 않은 JSON 파일입니다.",
+    toastStepSuccess: "직조 한 단계 성공!",
+    toastStepComplete: "직조 완료!",
+    toastStopError: "오류로 정지: ",
+    toastAutoplayStart: "자동 재생 시작",
+    toastAutoplayPause: "일시정지됨",
+    guideComplete: "직조 완료! 수고하셨습니다. 도안을 저장하세요!",
+    guidePrefix: "[우측 상단] ",
+    guideSuffix: "번 슬롯 실을 아래 ",
+    guideSuffix2: "번으로 이동시켜 시작하세요.",
+    presetModalTitle: "컬러 프리셋 관리",
+    presetFormTitleAdd: "새 프리셋 추가",
+    presetFormTitleEdit: "프리셋 수정 (#",
+    presetColorLabel: "색상 선택 (Color Picker)",
+    presetRgbLabel: "RGB 코드 직접 입력",
+    presetNameLabel: "색상 이름",
+    presetNamePlaceholder: "예: 아쿠아 블루",
+    presetSaveBtn: "저장",
+    presetCancelEditBtn: "수정 취소",
+    presetListTitle: "프리셋 목록",
+    presetModalCloseDone: "완료 및 닫기",
+    presetDeletedMsg: "프리셋 삭제됨",
+    presetAddedMsg: "등록 완료!",
+    presetEditedMsg: "수정 완료!"
+  },
+  en: {
+    title: "Palzzi - Kumihimo 2D Simulator",
+    logoTitle: "Palzzi",
+    jsonSave: "Save JSON",
+    jsonLoad: "Load JSON",
+    pngChart: "Chart (PNG)",
+    pngBraid: "Finished (PNG)",
+    templateSelect: "Select Template",
+    patternTemplate: "Pattern Template",
+    metaThreads: " Strands",
+    metaDifficulty: "Difficulty: ",
+    diffEasy: "Easy",
+    diffMedium: "Medium",
+    diffHard: "Hard",
+    colorCustomizer: "Thread Colors",
+    colorPickerLabel: "Selected Color:",
+    colorPresetsLabel: "Presets:",
+    managePresetsBtn: "Manage",
+    sectionHint: "Click threads on the disk or list below, then choose a color.",
+    storageShare: "Save & Share",
+    saveLocalBtn: "Save to Browser Pocket",
+    loadLocalBtn: "Load from Pocket",
+    shareUrlBtn: "Copy Share Link (URL)",
+    stepLabel: "PROGRESS:",
+    stepCounterPrefix: "Step",
+    autoplaySpeed: "Speed:",
+    maxLenLabel: "Max Length (Rows):",
+    tabVirtualBraid: "3D Virtual Braid View",
+    tabPatternChart: "Pattern Chart View",
+    tabVirtualDesc: "Displays the spiral twists of the braid up to the current step in a 2D cylindrical projection.",
+    tabChartDesc: "Visualizes thread transposition history in a pattern grid. (X-axis: thread, Y-axis: step)",
+    zoomLabel: "View Zoom:",
+    pitchLabel: "Braid Tension:",
+    dragHint: "Drag threads on the disk or use playback buttons below to braid.",
+    toastSaveLocal: "Successfully saved to browser pocket!",
+    toastLoadLocal: "Pocket data successfully recovered!",
+    toastNoLocal: "No pocket data found.",
+    toastShareUrl: "Share link copied to clipboard!",
+    toastExportJson: "JSON config exported successfully!",
+    toastImportJson: "JSON config imported successfully!",
+    toastImportError: "Error: Invalid JSON file format.",
+    toastStepSuccess: "Braid step complete!",
+    toastStepComplete: "Braiding finished!",
+    toastStopError: "Stopped due to error: ",
+    toastAutoplayStart: "Autoplay started",
+    toastAutoplayPause: "Autoplay paused",
+    guideComplete: "Braiding complete! Great job, save your pattern!",
+    guidePrefix: "[Top Right] Move ",
+    guideSuffix: " thread to bottom ",
+    guideSuffix2: " to start.",
+    presetModalTitle: "Manage Color Presets",
+    presetFormTitleAdd: "Add New Preset",
+    presetFormTitleEdit: "Edit Preset (#",
+    presetColorLabel: "Select Color (Color Picker)",
+    presetRgbLabel: "Enter RGB Code Directly",
+    presetNameLabel: "Color Name",
+    presetNamePlaceholder: "e.g., Aqua Blue",
+    presetSaveBtn: "Save",
+    presetCancelEditBtn: "Cancel Edit",
+    presetListTitle: "Preset List",
+    presetModalCloseDone: "Done & Close",
+    presetDeletedMsg: "Preset deleted",
+    presetAddedMsg: "added successfully!",
+    presetEditedMsg: "updated successfully!"
+  }
+};
+
 // Application State
+let currentLang = 'en'; // Default to English as requested
 let disk = new KumihimoDisk(8);
 let activeTemplate = KUMIHIMO_TEMPLATES[2]; // Default: 8-Strand Candy Cane
 let threadColors = [...activeTemplate.defaultColors];
 let currentStep = 0;
-const MAX_STEPS = 120;
+let MAX_STEPS = 120; // Changed to let to allow dynamic adjustments in UI (UX Upgrade)
 let isPlaying = false;
 let playInterval = null;
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
@@ -44,6 +179,10 @@ const colorPicker = document.getElementById('color-picker');
 const colorHex = document.getElementById('color-hex');
 const presetColorsContainer = document.getElementById('preset-colors-container');
 const toastMessage = document.getElementById('toast-message');
+
+// i18n Selector Buttons
+const btnLangKo = document.getElementById('btn-lang-ko');
+const btnLangEn = document.getElementById('btn-lang-en');
 
 // Modal Elements (doc/7_UI)
 const btnManagePresets = document.getElementById('btn-manage-presets');
@@ -109,6 +248,9 @@ function init() {
     }
   }
 
+  // Set the default language to English (as requested by user)
+  setLanguage('en');
+
   setupTemplateDropdown();
   loadTemplate(activeTemplate);
   setupEventListeners();
@@ -119,16 +261,88 @@ function init() {
   renderAll();
 }
 
-// Populate templates into select dropdown
+// i18n Translation Engine Changer
+function setLanguage(lang) {
+  currentLang = lang;
+  
+  // Update browser document title
+  document.title = TRANSLATIONS[lang].title;
+
+  // Toggle active styling on pills
+  if (lang === 'ko') {
+    btnLangKo.classList.add('active');
+    btnLangEn.classList.remove('active');
+  } else {
+    btnLangEn.classList.add('active');
+    btnLangKo.classList.remove('active');
+  }
+
+  // Translate all tags carrying data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (TRANSLATIONS[lang][key]) {
+      // Preserve icon elements if they exist inside buttons
+      const icon = el.querySelector('i');
+      if (icon) {
+        // Find text nodes or span
+        const span = el.querySelector('span');
+        if (span) {
+          span.textContent = TRANSLATIONS[lang][key];
+        } else {
+          el.innerHTML = `${icon.outerHTML} ${TRANSLATIONS[lang][key]}`;
+        }
+      } else {
+        el.textContent = TRANSLATIONS[lang][key];
+      }
+    }
+  });
+
+  // Translate placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (TRANSLATIONS[lang][key]) {
+      el.setAttribute('placeholder', TRANSLATIONS[lang][key]);
+    }
+  });
+
+  // Reload Template Dropdown text & metadata description dynamically
+  setupTemplateDropdown();
+  updateTemplateDisplayMetadata();
+  updatePlaybackUI();
+}
+
+// Populate templates into select dropdown with current language translations
 function setupTemplateDropdown() {
+  const currentVal = templateSelect.value || activeTemplate.id;
   templateSelect.innerHTML = '';
+  
   KUMIHIMO_TEMPLATES.forEach(tmpl => {
     const opt = document.createElement('option');
     opt.value = tmpl.id;
-    opt.textContent = tmpl.name;
+    // Fallback to name_en if name_ko/en is missing
+    opt.textContent = currentLang === 'ko' ? tmpl.name_ko : tmpl.name_en;
     templateSelect.appendChild(opt);
   });
-  templateSelect.value = activeTemplate.id;
+  templateSelect.value = currentVal;
+}
+
+// Update active template info section (called on lang change and template load)
+function updateTemplateDisplayMetadata() {
+  if (!activeTemplate) return;
+  
+  templateDesc.textContent = currentLang === 'ko' ? activeTemplate.desc_ko : activeTemplate.desc_en;
+  
+  metaThreads.innerHTML = `<i class="fa-solid fa-braille"></i> ${activeTemplate.threads}${TRANSLATIONS[currentLang].metaThreads}`;
+  
+  let diffText = "";
+  if (activeTemplate.threads >= 12) {
+    diffText = TRANSLATIONS[currentLang].diffHard;
+  } else if (activeTemplate.threads >= 8) {
+    diffText = TRANSLATIONS[currentLang].diffMedium;
+  } else {
+    diffText = TRANSLATIONS[currentLang].diffEasy;
+  }
+  metaDifficulty.innerHTML = `<i class="fa-solid fa-gauge-simple-high"></i> ${TRANSLATIONS[currentLang].metaDifficulty}${diffText}`;
 }
 
 // Load selected template
@@ -137,7 +351,7 @@ function loadTemplate(tmpl, customColors = null) {
   disk = new KumihimoDisk(tmpl.threads);
   threadColors = customColors ? [...customColors] : [...tmpl.defaultColors];
   
-  // Adjust progress bar
+  // Adjust progress bar bounds
   progressBar.max = MAX_STEPS;
   currentStep = 0;
   progressBar.value = 0;
@@ -147,16 +361,10 @@ function loadTemplate(tmpl, customColors = null) {
   // Reset engine disk state
   resetSimulationToStep(currentStep);
 
-  // Update UI Elements
-  templateDesc.textContent = tmpl.description;
-  metaThreads.innerHTML = `<i class="fa-solid fa-braille"></i> ${tmpl.threads} 가닥`;
+  // Update UI Elements and translations
+  updateTemplateDisplayMetadata();
   
-  let diff = "쉬움";
-  if (tmpl.threads >= 12) diff = "어려움";
-  else if (tmpl.threads >= 8) diff = "보통";
-  metaDifficulty.innerHTML = `<i class="fa-solid fa-gauge-simple-high"></i> ${diff}`;
-  
-  // Refresh color controls
+  // Refresh color controls list
   populateThreadList();
   updateColorPickerUI();
 }
@@ -176,196 +384,6 @@ function resetSimulationToStep(step) {
   updatePlaybackUI();
 }
 
-// --- Color Presets Manager Business Logic (doc/7_UI) ---
-
-// Render color presets circle buttons on the left panel
-function renderPresetColors() {
-  presetColorsContainer.innerHTML = '';
-  presetColors.forEach(preset => {
-    const btn = document.createElement('button');
-    btn.className = 'preset-btn';
-    btn.style.backgroundColor = preset.hex;
-    btn.title = `${preset.name} (${preset.hex})`;
-    btn.dataset.color = preset.hex;
-    
-    btn.addEventListener('click', () => {
-      colorPicker.value = preset.hex;
-      colorHex.value = preset.hex;
-      updateSelectedThreadColor(preset.hex);
-    });
-    
-    presetColorsContainer.appendChild(btn);
-  });
-}
-
-// Convert HEX color string to RGB object
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
-// Convert RGB integers to HEX color string
-function rgbToHex(r, g, b) {
-  const toHex = (c) => {
-    const h = Math.max(0, Math.min(255, c)).toString(16);
-    return h.length === 1 ? '0' + h : h;
-  };
-  return '#' + toHex(r) + toHex(g) + toHex(b);
-}
-
-// Render dynamic preset list inside the modal
-function renderModalPresetList() {
-  modalPresetListContainer.innerHTML = '';
-  
-  presetColors.forEach((preset, idx) => {
-    const item = document.createElement('div');
-    item.className = 'modal-preset-item';
-    
-    const infoGroup = document.createElement('div');
-    infoGroup.className = 'preset-info-group';
-    
-    const dot = document.createElement('div');
-    dot.className = 'thread-dot';
-    dot.style.backgroundColor = preset.hex;
-    dot.style.marginBottom = '0'; // align reset
-    
-    const textGroup = document.createElement('div');
-    textGroup.className = 'preset-info-text';
-    
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'preset-info-name';
-    nameSpan.textContent = preset.name;
-    
-    const hexSpan = document.createElement('span');
-    hexSpan.className = 'preset-info-hex';
-    hexSpan.textContent = preset.hex;
-    
-    textGroup.appendChild(nameSpan);
-    textGroup.appendChild(hexSpan);
-    
-    infoGroup.appendChild(dot);
-    infoGroup.appendChild(textGroup);
-    
-    const actionsGroup = document.createElement('div');
-    actionsGroup.className = 'preset-item-actions';
-    
-    // Edit Action Button
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn-action btn-action-edit';
-    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
-    editBtn.title = '수정';
-    editBtn.addEventListener('click', () => startEditPreset(idx));
-    
-    // Delete Action Button
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn-action btn-action-delete';
-    deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-    deleteBtn.title = '삭제';
-    deleteBtn.addEventListener('click', () => deletePreset(idx));
-    
-    actionsGroup.appendChild(editBtn);
-    actionsGroup.appendChild(deleteBtn);
-    
-    item.appendChild(infoGroup);
-    item.appendChild(actionsGroup);
-    
-    modalPresetListContainer.appendChild(item);
-  });
-}
-
-// Open Form in Edit Mode for existing preset
-function startEditPreset(idx) {
-  editingPresetIndex = idx;
-  const preset = presetColors[idx];
-  
-  modalPresetColor.value = preset.hex;
-  modalPresetHex.value = preset.hex;
-  modalPresetName.value = preset.name;
-  
-  const rgb = hexToRgb(preset.hex);
-  modalPresetR.value = rgb.r;
-  modalPresetG.value = rgb.g;
-  modalPresetB.value = rgb.b;
-  
-  formTitle.textContent = `프리셋 수정 (#${idx + 1})`;
-  btnModalCancelEdit.classList.remove('hidden');
-  btnModalSave.textContent = '수정 완료';
-}
-
-// Reset Form to New Preset addition mode
-function cancelEditPreset() {
-  editingPresetIndex = -1;
-  
-  modalPresetColor.value = '#007AFF';
-  modalPresetHex.value = '#007AFF';
-  modalPresetName.value = '애플 블루';
-  
-  modalPresetR.value = 0;
-  modalPresetG.value = 122;
-  modalPresetB.value = 255;
-  
-  formTitle.textContent = '새 프리셋 추가';
-  btnModalCancelEdit.classList.add('hidden');
-  btnModalSave.textContent = '저장';
-}
-
-// Delete existing preset
-function deletePreset(idx) {
-  const deletedName = presetColors[idx].name;
-  presetColors.splice(idx, 1);
-  
-  // If we deleted the preset currently in editing mode, reset form
-  if (editingPresetIndex === idx) {
-    cancelEditPreset();
-  } else if (editingPresetIndex > idx) {
-    editingPresetIndex--; // Adjust index down
-  }
-  
-  savePresetsToStorage();
-  renderModalPresetList();
-  renderPresetColors();
-  showToast(`프리셋 "${deletedName}" 삭제됨`);
-}
-
-// Save presets to localStorage
-function savePresetsToStorage() {
-  localStorage.setItem('palzzi-custom-presets', JSON.stringify(presetColors));
-}
-
-// Save Form (Add or Edit)
-function savePreset() {
-  const name = modalPresetName.value.trim();
-  if (!name) {
-    showToast("색상 이름을 입력해주세요!");
-    return;
-  }
-  
-  const hex = modalPresetHex.value.trim();
-  if (!/^#[0-9A-F]{6}$/i.test(hex)) {
-    showToast("올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)");
-    return;
-  }
-  
-  const preset = { name, hex };
-  
-  if (editingPresetIndex === -1) {
-    // Add New mode
-    presetColors.push(preset);
-    showToast(`프리셋 "${name}" 등록 완료!`);
-  } else {
-    // Edit mode
-    presetColors[editingPresetIndex] = preset;
-    showToast(`프리셋 "${name}" 수정 완료!`);
-  }
-  
-  cancelEditPreset();
-  savePresetsToStorage();
-  renderModalPresetList();
-  renderPresetColors();
-}
-
 // Refresh active threads colors list on the left panel
 function populateThreadList() {
   threadListContainer.innerHTML = '';
@@ -380,7 +398,7 @@ function populateThreadList() {
     
     const num = document.createElement('span');
     num.className = 'thread-num';
-    num.textContent = `실 ${i + 1}`;
+    num.textContent = currentLang === 'ko' ? `실 ${i + 1}` : `Th. ${i + 1}`;
     
     item.appendChild(dot);
     item.appendChild(num);
@@ -406,39 +424,37 @@ function updateColorPickerUI() {
 }
 
 function updatePlaybackUI() {
-  stepCounter.textContent = `Step ${currentStep} / ${MAX_STEPS}`;
+  stepCounter.textContent = `${TRANSLATIONS[currentLang].stepCounterPrefix} ${currentStep} / ${MAX_STEPS}`;
   progressBar.value = currentStep;
   progressPercentage.textContent = `${Math.round((currentStep / MAX_STEPS) * 100)}%`;
   
-  // Generate user guide text based on the next move
+  // Generate user guide text based on the next move and current i18n
   updateGuideText();
 }
 
 function updateGuideText() {
   if (currentStep >= MAX_STEPS) {
-    guideText.textContent = "직조 완료! 수고하셨습니다. 도안을 저장하세요!";
+    guideText.textContent = TRANSLATIONS[currentLang].guideComplete;
     return;
   }
   
   // Find current active group on the disk to guide the user
   const nPairs = disk.nThreads / 2;
-  const repeatCount = Math.max(1, nPairs / 2);
-  const distance = disk.slotsCount / nPairs;
-  
   const startPos = (disk.slotsCount - disk.rowIndex) % disk.slotsCount;
   
-  // Let's check which sub-step in this row is remaining.
-  // Since we weave the whole row at once in weaveRow(), we can guide the overall motion
-  // For simplicity, describe the main swap on the primary pair
   const tl = startPos;
   const tr = (startPos + 1) % disk.slotsCount;
   const br = (startPos + (disk.slotsCount / 2)) % disk.slotsCount;
-  const bl = (br + 1) % disk.slotsCount;
   
   const trSlot = tr + 1;
   const targetBrSlot = ((br - 1 + disk.slotsCount) % disk.slotsCount) + 1;
   
-  guideText.textContent = `[우측 상단] ${trSlot}번 슬롯 실을 아래 ${targetBrSlot}번으로 이동시켜 시작하세요.`;
+  // Symmetrical translation guide
+  if (currentLang === 'ko') {
+    guideText.textContent = `[우측 상단] ${trSlot}번 슬롯 실을 아래 ${targetBrSlot}번으로 이동시켜 시작하세요.`;
+  } else {
+    guideText.textContent = `[Top Right] Move slot ${trSlot} thread down to slot ${targetBrSlot} to start.`;
+  }
 }
 
 // --- Renderers ---
@@ -450,7 +466,7 @@ function renderAll() {
 }
 
 /**
- * Draw 32-slot Kumihimo Disk
+ * Draw Circular slots Kumihimo Disk (scales dynamically based on slotsCount)
  */
 function drawDisk() {
   ctxDisk.clearRect(0, 0, diskCanvas.width, diskCanvas.height);
@@ -775,9 +791,7 @@ function drawBraid() {
     ctxBraid.fillStyle = '#86868b';
     ctxBraid.font = '13px sans-serif';
     ctxBraid.textAlign = 'center';
-    ctxBraid.fillText('직조를 시작하면', cx, height / 2);
-    ctxBraid.fillText('여기에 3D 나선형 꼬임 완성본이', cx, height / 2 + 20);
-    ctxBraid.fillText('실시간으로 렌더링됩니다.', cx, height / 2 + 40);
+    ctxBraid.fillText(TRANSLATIONS[currentLang].dragHint, cx, height / 2);
     return;
   }
 
@@ -786,13 +800,13 @@ function drawBraid() {
   // Translate horizontal center and apply zoom scale centering (UX Upgrade)
   ctxBraid.translate(cx, 0);
   ctxBraid.scale(braidZoom, braidZoom);
-
+  
   // Cylinder Geometric Constants
   const radius = 33; // Cylinder radius (tightly scaled)
   const pitch = braidPitch; // Compact pitch spacing for tight weaving density (UX Upgrade)
   const nThreads = disk.nThreads;
-
-  // Draw top hanger loop or starting knot for aesthetic charm
+  
+  // Draw top hanger loop or starting knot inside scale
   ctxBraid.beginPath();
   ctxBraid.arc(0, 30, 14, 0, 2 * Math.PI);
   ctxBraid.fillStyle = '#8a7e72'; // Knot
@@ -807,7 +821,7 @@ function drawBraid() {
   ctxBraid.lineWidth = 5;
   ctxBraid.stroke();
   
-  const maxVisibleRows = Math.floor((height - 80) / pitch);
+  const maxVisibleRows = Math.floor(((height / braidZoom) - 80) / pitch);
   const totalRows = disk.productColors.length;
   const endRowIdx = Math.min(totalRows, maxVisibleRows);
   
@@ -880,7 +894,7 @@ function drawBraid() {
     ctxBraid.lineCap = 'round';
     
     // Calculate realistic lighting factor based on Z-depth (center is bright, sides are dark)
-    // This removes the grey overlay box entirely and makes colors extremely vivid and glowing!
+    // This removes the grey overlay box entirely and makes colors extremely glowing!
     const lightingFactor = 0.52 + 0.48 * ((seg.avgZ + radius) / (2 * radius)); // range 0.52 to 1.0
     const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
     
@@ -1134,6 +1148,16 @@ function showToast(msg) {
   }, 2500);
 }
 
+// Update the selected thread's color and re-render
+function updateSelectedThreadColor(color) {
+  if (selectedThreadIndex >= 0 && selectedThreadIndex < threadColors.length) {
+    threadColors[selectedThreadIndex] = color;
+    populateThreadList();
+    resetSimulationToStep(currentStep);
+    renderAll();
+  }
+}
+
 // --- Events Setup ---
 function setupEventListeners() {
 
@@ -1158,6 +1182,38 @@ function setupEventListeners() {
       renderAll();
     });
   }
+
+  // Max Steps Controller (UX Upgrade)
+  const maxStepsInput = document.getElementById('max-steps-input');
+  if (maxStepsInput) {
+    maxStepsInput.addEventListener('change', (e) => {
+      let val = parseInt(e.target.value, 10);
+      
+      // Bounds checking (e.g. min 10, max 1000)
+      if (isNaN(val) || val < 10) val = 10;
+      if (val > 1000) val = 1000;
+      
+      e.target.value = val;
+      MAX_STEPS = val;
+      
+      // Update progress bar max
+      progressBar.max = MAX_STEPS;
+      
+      // Clamp currentStep to new MAX_STEPS
+      if (currentStep > MAX_STEPS) {
+        currentStep = MAX_STEPS;
+        resetSimulationToStep(currentStep);
+      }
+      
+      updatePlaybackUI();
+      renderAll();
+      showToast(currentLang === 'ko' ? `최대 길이가 ${MAX_STEPS}행으로 설정되었습니다!` : `Max length updated to ${MAX_STEPS} rows!`);
+    });
+  }
+
+  // i18n Language toggle clicks
+  btnLangKo.addEventListener('click', () => setLanguage('ko'));
+  btnLangEn.addEventListener('click', () => setLanguage('en'));
 
   // Preset Manager Modal Control (doc/7_UI)
   btnManagePresets.addEventListener('click', () => {
@@ -1236,7 +1292,7 @@ function setupEventListeners() {
     if (tmpl) {
       loadTemplate(tmpl);
       renderAll();
-      showToast(`${tmpl.name} 로드됨`);
+      showToast(currentLang === 'ko' ? `${tmpl.name_ko} 로드됨` : `${tmpl.name_en} loaded`);
     }
   });
 
@@ -1253,28 +1309,11 @@ function setupEventListeners() {
       colorPicker.value = newColor;
       updateSelectedThreadColor(newColor);
     } else {
-      showToast("올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)");
+      showToast(currentLang === 'ko' ? "올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)" : "Please enter a valid HEX code (e.g., #FF5733)");
     }
   });
 
-  // Preset color buttons
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const color = btn.dataset.color;
-      colorPicker.value = color;
-      colorHex.value = color;
-      updateSelectedThreadColor(color);
-    });
-  });
-
-  function updateSelectedThreadColor(color) {
-    if (selectedThreadIndex >= 0 && selectedThreadIndex < threadColors.length) {
-      threadColors[selectedThreadIndex] = color;
-      populateThreadList();
-      resetSimulationToStep(currentStep);
-      renderAll();
-    }
-  }
+  // Preset color buttons - 이벤트 리스너는 renderPresetColors() 함수에서 동적으로 추가됨
 
   // 3. Playback Controls
   btnPlay.addEventListener('click', togglePlay);
@@ -1287,10 +1326,10 @@ function setupEventListeners() {
         updatePlaybackUI();
         renderAll();
       } catch (err) {
-        showToast(`오류: ${err.message}`);
+        showToast(`${currentLang === 'ko' ? '오류' : 'Error'}: ${err.message}`);
       }
     } else {
-      showToast("이미 모든 단계가 짜였습니다!");
+      showToast(TRANSLATIONS[currentLang].toastStepComplete);
     }
   });
 
@@ -1325,7 +1364,7 @@ function setupEventListeners() {
   btnSaveLocal.addEventListener('click', () => {
     const data = getExportData();
     localStorage.setItem('palzzi-saved-profile', JSON.stringify(data));
-    showToast("브라우저 내 보관함에 저장되었습니다!");
+    showToast(TRANSLATIONS[currentLang].toastSaveLocal);
   });
 
   btnLoadLocal.addEventListener('click', () => {
@@ -1334,12 +1373,12 @@ function setupEventListeners() {
       try {
         const data = JSON.parse(saved);
         loadExportData(data);
-        showToast("보관함 데이터를 성공적으로 복구했습니다!");
+        showToast(TRANSLATIONS[currentLang].toastLoadLocal);
       } catch (err) {
-        showToast("불러오기 실패: 데이터가 오염되었습니다.");
+        showToast(currentLang === 'ko' ? "불러오기 실패: 데이터가 오염되었습니다." : "Failed to load: Corrupted profile data.");
       }
     } else {
-      showToast("저장된 보관함 데이터가 없습니다.");
+      showToast(TRANSLATIONS[currentLang].toastNoLocal);
     }
   });
 
@@ -1348,9 +1387,9 @@ function setupEventListeners() {
     const shareUrl = `${window.location.origin}${window.location.pathname}?tmpl=${activeTemplate.id}&colors=${hexArray.join(',')}&step=${currentStep}`;
     
     navigator.clipboard.writeText(shareUrl).then(() => {
-      showToast("공유 링크가 클립보드에 복사되었습니다!");
+      showToast(TRANSLATIONS[currentLang].toastShareUrl);
     }).catch(() => {
-      showToast("링크 복사 실패. 브라우저 보안 설정을 확인해 주세요.");
+      showToast(currentLang === 'ko' ? "링크 복사 실패. 브라우저 보안 설정을 확인해 주세요." : "Clipboard copy failed. Please verify browser security permissions.");
     });
   });
 
@@ -1363,7 +1402,7 @@ function setupEventListeners() {
     a.download = `palzzi-kumihimo-${activeTemplate.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast("JSON 파일 저장 완료!");
+    showToast(TRANSLATIONS[currentLang].toastExportJson);
   });
 
   btnImportJsonTrigger.addEventListener('click', () => {
@@ -1379,9 +1418,9 @@ function setupEventListeners() {
       try {
         const data = JSON.parse(evt.target.result);
         loadExportData(data);
-        showToast("JSON 설정 불러오기 완료!");
+        showToast(TRANSLATIONS[currentLang].toastImportJson);
       } catch (err) {
-        showToast("오류: 올바르지 않은 JSON 파일입니다.");
+        showToast(TRANSLATIONS[currentLang].toastImportError);
       }
     };
     reader.readAsText(file);
@@ -1394,7 +1433,7 @@ function setupEventListeners() {
     a.href = chartCanvas.toDataURL('image/png');
     a.download = `palzzi-chart-${activeTemplate.id}-step${currentStep}.png`;
     a.click();
-    showToast("도안 차트 고해상도 PNG 다운로드 완료!");
+    showToast(currentLang === 'ko' ? "도안 차트 고해상도 PNG 다운로드 완료!" : "High-resolution chart PNG downloaded!");
   });
 
   btnExportPngBraid.addEventListener('click', () => {
@@ -1402,7 +1441,7 @@ function setupEventListeners() {
     a.href = braidCanvas.toDataURL('image/png');
     a.download = `palzzi-finished-${activeTemplate.id}-step${currentStep}.png`;
     a.click();
-    showToast("완성 이미지 PNG 다운로드 완료!");
+    showToast(currentLang === 'ko' ? "완성 이미지 PNG 다운로드 완료!" : "Finished braid PNG downloaded!");
   });
 
   // 5. Canvas mouse/touch drag events for interactive braiding
@@ -1516,15 +1555,13 @@ function onDragEnd() {
   
   if (dragTargetSlot !== -1) {
     // A correct step is dragged! 
-    // We execute weaveRow() since the user completed the pairing gesture!
-    // In our manual single drag, we automatically complete the paired step for ease of use.
     try {
       disk.weaveRow();
       currentStep = disk.rowIndex;
       updatePlaybackUI();
-      showToast("직조 한 단계 성공!");
+      showToast(TRANSLATIONS[currentLang].toastStepSuccess);
     } catch (err) {
-      showToast(`직조 실패: ${err.message}`);
+      showToast(`${currentLang === 'ko' ? '직조 실패' : 'Weaving error'}: ${err.message}`);
     }
   }
   
@@ -1533,16 +1570,206 @@ function onDragEnd() {
   renderAll();
 }
 
+// --- Color Presets i18n Helpers (doc/7_UI) ---
+
+// Render color presets circle buttons on the left panel
+function renderPresetColors() {
+  presetColorsContainer.innerHTML = '';
+  presetColors.forEach(preset => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.style.backgroundColor = preset.hex;
+    btn.title = `${preset.name} (${preset.hex})`;
+    btn.dataset.color = preset.hex;
+    
+    btn.addEventListener('click', () => {
+      colorPicker.value = preset.hex;
+      colorHex.value = preset.hex;
+      updateSelectedThreadColor(preset.hex);
+    });
+    
+    presetColorsContainer.appendChild(btn);
+  });
+}
+
+// Convert HEX color string to RGB object
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+// Convert RGB integers to HEX color string
+function rgbToHex(r, g, b) {
+  const toHex = (c) => {
+    const h = Math.max(0, Math.min(255, c)).toString(16);
+    return h.length === 1 ? '0' + h : h;
+  };
+  return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
+// Render dynamic preset list inside the modal with edit/delete actions
+function renderModalPresetList() {
+  modalPresetListContainer.innerHTML = '';
+  
+  presetColors.forEach((preset, idx) => {
+    const item = document.createElement('div');
+    item.className = 'modal-preset-item';
+    
+    const infoGroup = document.createElement('div');
+    infoGroup.className = 'preset-info-group';
+    
+    const dot = document.createElement('div');
+    dot.className = 'thread-dot';
+    dot.style.backgroundColor = preset.hex;
+    dot.style.marginBottom = '0'; // align reset
+    
+    const textGroup = document.createElement('div');
+    textGroup.className = 'preset-info-text';
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'preset-info-name';
+    nameSpan.textContent = preset.name;
+    
+    const hexSpan = document.createElement('span');
+    hexSpan.className = 'preset-info-hex';
+    hexSpan.textContent = preset.hex;
+    
+    textGroup.appendChild(nameSpan);
+    textGroup.appendChild(hexSpan);
+    
+    infoGroup.appendChild(dot);
+    infoGroup.appendChild(textGroup);
+    
+    const actionsGroup = document.createElement('div');
+    actionsGroup.className = 'preset-item-actions';
+    
+    // Edit Action Button
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn-action btn-action-edit';
+    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+    editBtn.title = currentLang === 'ko' ? '수정' : 'Edit';
+    editBtn.addEventListener('click', () => startEditPreset(idx));
+    
+    // Delete Action Button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-action btn-action-delete';
+    deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+    deleteBtn.title = currentLang === 'ko' ? '삭제' : 'Delete';
+    deleteBtn.addEventListener('click', () => deletePreset(idx));
+    
+    actionsGroup.appendChild(editBtn);
+    actionsGroup.appendChild(deleteBtn);
+    
+    item.appendChild(infoGroup);
+    item.appendChild(actionsGroup);
+    
+    modalPresetListContainer.appendChild(item);
+  });
+}
+
+// Open Form in Edit Mode for existing preset
+function startEditPreset(idx) {
+  editingPresetIndex = idx;
+  const preset = presetColors[idx];
+  
+  modalPresetColor.value = preset.hex;
+  modalPresetHex.value = preset.hex;
+  modalPresetName.value = preset.name;
+  
+  const rgb = hexToRgb(preset.hex);
+  modalPresetR.value = rgb.r;
+  modalPresetG.value = rgb.g;
+  modalPresetB.value = rgb.b;
+  
+  formTitle.textContent = `${TRANSLATIONS[currentLang].presetFormTitleEdit}${idx + 1})`;
+  btnModalCancelEdit.classList.remove('hidden');
+  btnModalSave.textContent = currentLang === 'ko' ? '수정 완료' : 'Update';
+}
+
+// Reset Form to New Preset addition mode
+function cancelEditPreset() {
+  editingPresetIndex = -1;
+  
+  modalPresetColor.value = '#007AFF';
+  modalPresetHex.value = '#007AFF';
+  modalPresetName.value = currentLang === 'ko' ? '애플 블루' : 'Apple Blue';
+  
+  modalPresetR.value = 0;
+  modalPresetG.value = 122;
+  modalPresetB.value = 255;
+  
+  formTitle.textContent = TRANSLATIONS[currentLang].presetFormTitleAdd;
+  btnModalCancelEdit.classList.add('hidden');
+  btnModalSave.textContent = TRANSLATIONS[currentLang].presetSaveBtn;
+}
+
+// Delete existing preset
+function deletePreset(idx) {
+  const deletedName = presetColors[idx].name;
+  presetColors.splice(idx, 1);
+  
+  // If we deleted the preset currently in editing mode, reset form
+  if (editingPresetIndex === idx) {
+    cancelEditPreset();
+  } else if (editingPresetIndex > idx) {
+    editingPresetIndex--; // Adjust index down
+  }
+  
+  savePresetsToStorage();
+  renderModalPresetList();
+  renderPresetColors();
+  showToast(`${TRANSLATIONS[currentLang].presetDeletedMsg}: "${deletedName}"`);
+}
+
+// Save presets to localStorage
+function savePresetsToStorage() {
+  localStorage.setItem('palzzi-custom-presets', JSON.stringify(presetColors));
+}
+
+// Save Form (Add or Edit)
+function savePreset() {
+  const name = modalPresetName.value.trim();
+  if (!name) {
+    showToast(currentLang === 'ko' ? "색상 이름을 입력해주세요!" : "Please enter a color name!");
+    return;
+  }
+  
+  const hex = modalPresetHex.value.trim();
+  if (!/^#[0-9A-F]{6}$/i.test(hex)) {
+    showToast(currentLang === 'ko' ? "올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)" : "Please enter a valid HEX code. (e.g., #FF5733)");
+    return;
+  }
+  
+  const preset = { name, hex };
+  
+  if (editingPresetIndex === -1) {
+    // Add New mode
+    presetColors.push(preset);
+    showToast(`"${name}" ${TRANSLATIONS[currentLang].presetAddedMsg}`);
+  } else {
+    // Edit mode
+    presetColors[editingPresetIndex] = preset;
+    showToast(`"${name}" ${TRANSLATIONS[currentLang].presetEditedMsg}`);
+  }
+  
+  cancelEditPreset();
+  savePresetsToStorage();
+  renderModalPresetList();
+  renderPresetColors();
+}
+
 // --- Data Import/Export Schemas ---
 
 function getExportData() {
   return {
     projectId: `palzzi-${activeTemplate.id}-${Date.now()}`,
-    projectName: activeTemplate.name,
+    projectName: activeTemplate.name_en, // export english name as default
     craftType: "KUMIHIMO_ROUND",
     meta: {
       totalThreads: disk.nThreads,
-      diskSlots: 32,
+      diskSlots: disk.slotsCount,
       activeStep: currentStep,
     },
     colors: [...threadColors]
@@ -1557,9 +1784,11 @@ function loadExportData(data) {
       // Fallback
       foundTmpl = {
         id: `custom-tmpl-${threadsCount}`,
-        name: `${threadsCount}줄 커스텀 패턴`,
+        name_ko: `${threadsCount}줄 커스텀 패턴`,
+        name_en: `${threadsCount}-Strand Custom Pattern`,
         threads: threadsCount,
-        description: `사용자 지정 ${threadsCount}줄 쿠미히모 패턴입니다.`,
+        desc_ko: `사용자 지정 ${threadsCount}줄 쿠미히모 패턴입니다.`,
+        desc_en: `User customized ${threadsCount}-strand Kumihimo pattern preset.`,
         defaultColors: [...data.colors]
       };
     }
@@ -1588,7 +1817,7 @@ function togglePlay() {
     clearInterval(playInterval);
     isPlaying = false;
     btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
-    showToast("일시정지됨");
+    showToast(TRANSLATIONS[currentLang].toastAutoplayPause);
   } else {
     if (currentStep >= MAX_STEPS) {
       currentStep = 0;
@@ -1597,7 +1826,7 @@ function togglePlay() {
     
     isPlaying = true;
     btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
-    showToast("자동 재생 시작");
+    showToast(TRANSLATIONS[currentLang].toastAutoplayStart);
     
     const intervalTime = parseInt(speedSelect.value, 10);
     playInterval = setInterval(() => {
@@ -1611,13 +1840,13 @@ function togglePlay() {
           clearInterval(playInterval);
           isPlaying = false;
           btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
-          showToast(`오류로 정지: ${err.message}`);
+          showToast(`${TRANSLATIONS[currentLang].toastStopError}${err.message}`);
         }
       } else {
         clearInterval(playInterval);
         isPlaying = false;
         btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
-        showToast("직조 완료!");
+        showToast(TRANSLATIONS[currentLang].toastStepComplete);
       }
     }, intervalTime);
   }
@@ -1647,7 +1876,7 @@ function checkUrlParams() {
         }
       }
       renderAll();
-      showToast("공유된 상태를 불러왔습니다!");
+      showToast(currentLang === 'ko' ? "공유된 상태를 불러왔습니다!" : "Successfully loaded shared pattern state!");
     }
   }
 }

@@ -744,6 +744,46 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: var(--radius-sm);
 }
 
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Language Selector Pills (i18n Support) */
+.lang-selector {
+  display: inline-flex;
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.lang-btn {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.lang-btn:hover {
+  color: var(--text-main);
+}
+
+.lang-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
 /* Braid Zoom Controller Bar */
 .braid-zoom-bar {
   display: flex;
