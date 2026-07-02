@@ -1,5 +1,12 @@
 import { KumihimoDisk } from './engine/kumihimo.js';
 import { KUMIHIMO_TEMPLATES } from './templates/templates.js';
+import { db } from './firebase/config.js';
+import {
+  collection,
+  addDoc,
+  serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
 
 // --- Multilingual i18n Translations Dictionary (doc/2_PRD) ---
 const TRANSLATIONS = {
@@ -66,7 +73,15 @@ const TRANSLATIONS = {
     presetModalCloseDone: "완료 및 닫기",
     presetDeletedMsg: "프리셋 삭제됨",
     presetAddedMsg: "등록 완료!",
-    presetEditedMsg: "수정 완료!"
+    presetEditedMsg: "수정 완료!",
+    galleryLink: "갤러리",
+    saveGalleryBtn: "갤러리에 저장 (Firebase)",
+    toastSaveGallery: "갤러리에 저장되었습니다!",
+    toastSaveGalleryError: "갤러리 저장에 실패했습니다.",
+    galleryPatternName: "내 쿠미히모 패턴",
+    signInWithGoogle: "Google 로그인",
+    signOut: "로그아웃",
+    signInRequired: "갤러리에 저장하려면 먼저 로그인하세요.",
   },
   en: {
     title: "Palzzi - Kumihimo 2D Simulator",
@@ -131,12 +146,21 @@ const TRANSLATIONS = {
     presetModalCloseDone: "Done & Close",
     presetDeletedMsg: "Preset deleted",
     presetAddedMsg: "added successfully!",
-    presetEditedMsg: "updated successfully!"
+    presetEditedMsg: "updated successfully!",
+    galleryLink: "Gallery",
+    saveGalleryBtn: "Save to Gallery (Firebase)",
+    toastSaveGallery: "Saved to gallery!",
+    toastSaveGalleryError: "Failed to save to gallery.",
+    galleryPatternName: "My Kumihimo Pattern",
+    signInWithGoogle: "Sign in with Google",
+    signOut: "Sign out",
+    signInRequired: "Please sign in first to save to gallery.",
   }
 };
 
 // Application State
 let currentLang = 'en'; // Default to English as requested
+let currentUser = null;
 let disk = new KumihimoDisk(8);
 let activeTemplate = KUMIHIMO_TEMPLATES[2]; // Default: 8-Strand Candy Cane
 let threadColors = [...activeTemplate.defaultColors];
@@ -150,16 +174,16 @@ let braidPitch = 4.3; // Braid weaving compactness pitch spacing (UX Upgrade)
 
 // Color Presets Manager State (doc/7_UI)
 let presetColors = [
-  { name: "레드", hex: "#FF3B30" },
-  { name: "오렌지", hex: "#FF9500" },
-  { name: "옐로우", hex: "#FFCC00" },
-  { name: "그린", hex: "#4CD964" },
-  { name: "아쿠아", hex: "#5AC8FA" },
-  { name: "블루", hex: "#007AFF" },
-  { name: "퍼플", hex: "#5856D6" },
-  { name: "핑크", hex: "#FF2D55" },
-  { name: "화이트", hex: "#FFFFFF" },
-  { name: "다크 그레이", hex: "#1D1D1F" }
+  { name_ko: "레드", name_en: "Red", hex: "#FF3B30" },
+  { name_ko: "오렌지", name_en: "Orange", hex: "#FF9500" },
+  { name_ko: "옐로우", name_en: "Yellow", hex: "#FFCC00" },
+  { name_ko: "그린", name_en: "Green", hex: "#4CD964" },
+  { name_ko: "아쿠아", name_en: "Aqua", hex: "#5AC8FA" },
+  { name_ko: "블루", name_en: "Blue", hex: "#007AFF" },
+  { name_ko: "퍼플", name_en: "Purple", hex: "#5856D6" },
+  { name_ko: "핑크", name_en: "Pink", hex: "#FF2D55" },
+  { name_ko: "화이트", name_en: "White", hex: "#FFFFFF" },
+  { name_ko: "다크 그레이", name_en: "Dark Gray", hex: "#1D1D1F" }
 ];
 let editingPresetIndex = -1; // -1 for "Add New", >=0 for "Edit Existing"
 
@@ -218,6 +242,8 @@ const btnLast = document.getElementById('btn-last');
 const speedSelect = document.getElementById('speed-select');
 
 // Storage & Export Buttons
+const authArea = document.getElementById('auth-area');
+const btnSaveGallery = document.getElementById('btn-save-gallery');
 const btnSaveLocal = document.getElementById('btn-save-local');
 const btnLoadLocal = document.getElementById('btn-load-local');
 const btnShareUrl = document.getElementById('btn-share-url');
@@ -236,8 +262,42 @@ const ctxDisk = diskCanvas.getContext('2d');
 const ctxBraid = braidCanvas.getContext('2d');
 const ctxChart = chartCanvas.getContext('2d');
 
+// --- Auth UI ---
+const GOOGLE_ICON_SVG = `<svg class="google-icon" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.81-4.59l-7.98-6.19A23.93 23.93 0 0 0 0 24c0 3.77.9 7.35 2.56 10.59l7.97-6zm"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
+
+function updateAuthUI(user) {
+  const t = TRANSLATIONS[currentLang];
+  if (user) {
+    authArea.innerHTML = `
+      <div class="auth-user-info">
+        <img src="${user.photoURL || ''}" alt="avatar" class="auth-avatar" referrerpolicy="no-referrer">
+        <span class="auth-display-name">${user.displayName || user.email}</span>
+      </div>
+      <button class="btn-signout" id="btn-signout">${t.signOut}</button>
+    `;
+    authArea.querySelector('#btn-signout').addEventListener('click', () => {
+      signOutUser();
+    });
+  } else {
+    authArea.innerHTML = `
+      <button class="btn-google-signin" id="btn-google-signin">
+        ${GOOGLE_ICON_SVG} ${t.signInWithGoogle}
+      </button>
+    `;
+    authArea.querySelector('#btn-google-signin').addEventListener('click', () => {
+      signInWithGoogle();
+    });
+  }
+}
+
 // --- Initialization ---
 function init() {
+  // Auth state listener
+  onAuthChange((user) => {
+    currentUser = user;
+    updateAuthUI(user);
+  });
+
   // Load custom color presets from localStorage if saved (doc/7_UI)
   const localPresets = localStorage.getItem('palzzi-custom-presets');
   if (localPresets) {
@@ -309,6 +369,9 @@ function setLanguage(lang) {
   setupTemplateDropdown();
   updateTemplateDisplayMetadata();
   updatePlaybackUI();
+
+  // Re-render preset colors with updated language
+  renderPresetColors();
 }
 
 // Populate templates into select dropdown with current language translations
@@ -887,8 +950,8 @@ function drawBraid() {
     ctxBraid.lineTo(seg.tx, seg.ty);
     
     // Compute thread thickness - slightly higher scaling multiplier for full gap coverage
-    const thick = (2 * Math.PI * radius / nThreads) * 0.76;
-    const strandWidth = Math.max(4, Math.min(18, thick));
+    const thick = (2 * Math.PI * radius / nThreads) * 1.05;
+    const strandWidth = Math.max(5, Math.min(18, thick));
     
     ctxBraid.lineWidth = strandWidth;
     ctxBraid.lineCap = 'round';
@@ -1361,6 +1424,43 @@ function setupEventListeners() {
   });
 
   // 4. Storage actions
+
+  // Save to Firebase Gallery (Firestore) — requires auth
+  btnSaveGallery.addEventListener('click', async () => {
+    const t = TRANSLATIONS[currentLang];
+
+    if (!currentUser) {
+      showToast(t.signInRequired);
+      return;
+    }
+
+    btnSaveGallery.disabled = true;
+
+    try {
+      const templateNameKo = activeTemplate.name_ko || activeTemplate.name_en;
+      const templateNameEn = activeTemplate.name_en || activeTemplate.name_ko;
+
+      await addDoc(collection(db, 'patterns'), {
+        templateId: activeTemplate.id,
+        templateName: activeTemplate.name_en,
+        nameKo: templateNameKo,
+        nameEn: templateNameEn,
+        nThreads: disk.nThreads,
+        maxSteps: MAX_STEPS,
+        colors: [...threadColors],
+        ownerUid: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+
+      showToast(t.toastSaveGallery);
+    } catch (err) {
+      console.error('Error saving to gallery:', err);
+      showToast(t.toastSaveGalleryError);
+    } finally {
+      btnSaveGallery.disabled = false;
+    }
+  });
+
   btnSaveLocal.addEventListener('click', () => {
     const data = getExportData();
     localStorage.setItem('palzzi-saved-profile', JSON.stringify(data));
@@ -1572,6 +1672,11 @@ function onDragEnd() {
 
 // --- Color Presets i18n Helpers (doc/7_UI) ---
 
+// Get localized preset name based on current language
+function getPresetName(preset) {
+  return currentLang === 'ko' ? (preset.name_ko || preset.name) : (preset.name_en || preset.name);
+}
+
 // Render color presets circle buttons on the left panel
 function renderPresetColors() {
   presetColorsContainer.innerHTML = '';
@@ -1579,15 +1684,15 @@ function renderPresetColors() {
     const btn = document.createElement('button');
     btn.className = 'preset-btn';
     btn.style.backgroundColor = preset.hex;
-    btn.title = `${preset.name} (${preset.hex})`;
+    btn.title = `${getPresetName(preset)} (${preset.hex})`;
     btn.dataset.color = preset.hex;
-    
+
     btn.addEventListener('click', () => {
       colorPicker.value = preset.hex;
       colorHex.value = preset.hex;
       updateSelectedThreadColor(preset.hex);
     });
-    
+
     presetColorsContainer.appendChild(btn);
   });
 }
@@ -1630,7 +1735,7 @@ function renderModalPresetList() {
     
     const nameSpan = document.createElement('span');
     nameSpan.className = 'preset-info-name';
-    nameSpan.textContent = preset.name;
+    nameSpan.textContent = getPresetName(preset);
     
     const hexSpan = document.createElement('span');
     hexSpan.className = 'preset-info-hex';
@@ -1676,7 +1781,7 @@ function startEditPreset(idx) {
   
   modalPresetColor.value = preset.hex;
   modalPresetHex.value = preset.hex;
-  modalPresetName.value = preset.name;
+  modalPresetName.value = getPresetName(preset);
   
   const rgb = hexToRgb(preset.hex);
   modalPresetR.value = rgb.r;
@@ -1707,7 +1812,7 @@ function cancelEditPreset() {
 
 // Delete existing preset
 function deletePreset(idx) {
-  const deletedName = presetColors[idx].name;
+  const deletedName = getPresetName(presetColors[idx]);
   presetColors.splice(idx, 1);
   
   // If we deleted the preset currently in editing mode, reset form
@@ -1735,15 +1840,16 @@ function savePreset() {
     showToast(currentLang === 'ko' ? "색상 이름을 입력해주세요!" : "Please enter a color name!");
     return;
   }
-  
+
   const hex = modalPresetHex.value.trim();
   if (!/^#[0-9A-F]{6}$/i.test(hex)) {
     showToast(currentLang === 'ko' ? "올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)" : "Please enter a valid HEX code. (e.g., #FF5733)");
     return;
   }
-  
-  const preset = { name, hex };
-  
+
+  // Store name in both languages (same value for both when user creates/edits)
+  const preset = { name_ko: name, name_en: name, hex };
+
   if (editingPresetIndex === -1) {
     // Add New mode
     presetColors.push(preset);

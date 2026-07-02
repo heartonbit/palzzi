@@ -33,6 +33,7 @@ certs/
 credentials.json
 service-account.json
 *firebase-key.json
+src/firebase/config.js
 *secret*.json
 .runtimeconfig.json
 
@@ -57,3 +58,4 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
+.qwen/

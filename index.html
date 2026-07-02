@@ -3,221 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="title">Palzzi (팔찌) - 쿠미히모 2D 시뮬레이터</title>
-  <!-- Google Fonts & Font Awesome Icons -->
+  <title data-i18n="galleryTitle">Palzzi - 쿠미히모 패턴 갤러리</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="gallery-style.css">
 </head>
 <body>
-  <!-- App Wrapper -->
   <div class="app-container">
-    
+
     <!-- Top Header Bar -->
     <header class="top-bar">
       <div class="logo-group">
         <div class="logo">
           <i class="fa-solid fa-circle-nodes"></i>
-          <h1><span data-i18n="logoTitle">Palzzi</span> <span class="badge">v1.2 MVP</span></h1>
+          <h1><span data-i18n="logoTitle">Palzzi</span> <span class="badge" data-i18n="galleryBadge">갤러리</span></h1>
         </div>
-        <!-- Language Selector Toggle -->
         <div class="lang-selector">
           <button id="btn-lang-ko" class="lang-btn active">KO</button>
           <button id="btn-lang-en" class="lang-btn">EN</button>
         </div>
       </div>
       <div class="header-actions">
-        <button id="btn-export-json" class="btn btn-secondary" title="JSON으로 내보내기 / Export config to JSON">
-          <i class="fa-solid fa-file-code"></i> <span data-i18n="jsonSave">JSON 저장</span>
-        </button>
-        <button id="btn-import-json-trigger" class="btn btn-secondary" title="JSON 불러오기 / Import config from JSON">
-          <i class="fa-solid fa-file-import"></i> <span data-i18n="jsonLoad">JSON 불러오기</span>
-        </button>
-        <input type="file" id="input-import-json" accept=".json" style="display: none;">
-        
-        <button id="btn-export-png-chart" class="btn btn-primary" title="도안을 고해상도 PNG로 내보내기 / Export chart to PNG">
-          <i class="fa-solid fa-download"></i> <span data-i18n="pngChart">도안 (PNG)</span>
-        </button>
-        <button id="btn-export-png-braid" class="btn btn-success" title="완성된 끈 이미지를 PNG로 내보내기 / Export braid to PNG">
-          <i class="fa-solid fa-image"></i> <span data-i18n="pngBraid">완성본 (PNG)</span>
-        </button>
+        <div id="auth-area" class="auth-area">
+          <!-- Auth UI dynamically populated by gallery.js -->
+        </div>
+        <a href="/simulator" class="btn btn-primary" data-i18n="backToSimulator">
+          <i class="fa-solid fa-arrows-spin"></i> 시뮬레이터로
+        </a>
       </div>
     </header>
 
-    <!-- Main Workspace Area -->
+    <!-- Gallery Workspace -->
     <main class="workspace">
-      
-      <!-- Left Control Panel -->
-      <aside class="control-panel">
-        
-        <!-- 1. Template Selector Section -->
-        <section class="panel-section">
-          <h2><i class="fa-solid fa-palette"></i> <span data-i18n="templateSelect">템플릿 선택</span></h2>
-          <div class="form-group">
-            <label for="template-select" data-i18n="patternTemplate">패턴 템플릿</label>
-            <select id="template-select" class="form-control">
-              <!-- Dynamically populated from templates.js -->
-            </select>
-          </div>
-          <div class="template-info">
-            <span id="template-desc">템플릿 설명이 여기에 표시됩니다.</span>
-            <div class="meta-tags">
-              <span id="meta-threads" class="tag"><i class="fa-solid fa-braille"></i> 8 가닥</span>
-              <span id="meta-difficulty" class="tag"><i class="fa-solid fa-gauge-simple-high"></i> 보통</span>
-            </div>
-          </div>
-        </section>
 
-        <!-- 2. Color Customizer Section -->
-        <section class="panel-section">
-          <h2><i class="fa-solid fa-sliders"></i> <span data-i18n="colorCustomizer">실 색상 커스텀</span></h2>
-          <p class="section-hint" data-i18n="sectionHint">디스크 위의 실이나 아래 리스트를 누른 뒤 색상을 변경하세요.</p>
-          <div id="thread-list" class="thread-list">
-            <!-- Dynamically populated with active threads & color circles -->
-          </div>
-          <div class="color-picker-wrapper">
-            <div class="picker-controls">
-              <label for="color-picker" data-i18n="colorPickerLabel">선택된 실 색상:</label>
-              <div class="picker-row">
-                <input type="color" id="color-picker" value="#FF5733">
-                <input type="text" id="color-hex" class="form-control color-hex-input" value="#FF5733" maxlength="7">
-              </div>
-            </div>
-            <div class="color-presets">
-              <div class="preset-header-row">
-                <span class="preset-title" data-i18n="colorPresetsLabel">프리셋 컬러:</span>
-                <button id="btn-manage-presets" class="btn-preset-manage" title="프리셋 컬러 관리">
-                  <i class="fa-solid fa-sliders"></i> <span data-i18n="managePresetsBtn">관리</span>
-                </button>
-              </div>
-              <div id="preset-colors-container" class="preset-colors">
-                <!-- Dynamically populated in main.js -->
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 3. Local Storage & Sharing Section -->
-        <section class="panel-section">
-          <h2><i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="storageShare">저장 및 공유</span></h2>
-          <div class="storage-actions">
-            <button id="btn-save-local" class="btn btn-info w-100">
-              <i class="fa-solid fa-bookmark"></i> <span data-i18n="saveLocalBtn">내 보관함에 저장 (Browser)</span>
-            </button>
-            <button id="btn-load-local" class="btn btn-secondary w-100 mt-2">
-              <i class="fa-solid fa-folder-open"></i> <span data-i18n="loadLocalBtn">보관함 불러오기</span>
-            </button>
-            <button id="btn-share-url" class="btn btn-warning w-100 mt-2">
-              <i class="fa-solid fa-share-nodes"></i> <span data-i18n="shareUrlBtn">공유 링크 복사 (URL)</span>
-            </button>
-          </div>
-          <div id="toast-message" class="toast hidden">상태 메시지가 여기에 표시됩니다.</div>
-        </section>
-      </aside>
-
-      <!-- Center Simulator Panel -->
-      <section class="workspace-center">
-        
-        <!-- Disk Header containing step numbers -->
-        <div class="workspace-header">
-          <div class="step-badge">
-            <span class="label" data-i18n="stepLabel">PROGRESS:</span>
-            <span id="step-counter" class="value">Step 0 / 120</span>
-          </div>
-          <div class="step-guide">
-            <i class="fa-solid fa-circle-info"></i> <span id="guide-text">로딩 중...</span>
-          </div>
+      <!-- Gallery Grid Area -->
+      <section class="gallery-area">
+        <div class="gallery-header">
+          <h2 data-i18n="galleryHeading"><i class="fa-solid fa-images"></i> 쿠미히모 패턴 갤러리</h2>
+          <p class="gallery-subtitle" data-i18n="gallerySubtitle">Firebase에 저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.</p>
         </div>
 
-        <!-- 2D Disk Display Panel -->
-        <div class="disk-canvas-container">
-          <canvas id="disk-canvas" width="480" height="480"></canvas>
-          <div class="disk-overlay-hint" data-i18n="dragHint">
-            <i class="fa-solid fa-arrows-spin"></i> 마우스로 실을 드래그하거나 아래 컨트롤러를 이용해 직조하세요.
-          </div>
+        <!-- Loading / Empty states -->
+        <div id="gallery-loading" class="gallery-state">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <p data-i18n="loadingPatterns">패턴을 불러오는 중...</p>
+        </div>
+        <div id="gallery-empty" class="gallery-state hidden">
+          <i class="fa-solid fa-folder-open"></i>
+          <p data-i18n="noPatterns">아직 저장된 패턴이 없습니다.</p>
+          <a href="/simulator" class="btn btn-primary" data-i18n="createFirst">
+            <i class="fa-solid fa-plus"></i> 첫 패턴 만들기
+          </a>
         </div>
 
-        <!-- Playback Controller Dashboard -->
-        <div class="playback-controller">
-          <div class="progress-container">
-            <input type="range" id="progress-bar" class="progress-slider" min="0" max="120" value="0">
-            <div class="progress-labels">
-              <span>START</span>
-              <span id="progress-percentage">0%</span>
-              <span>END</span>
-            </div>
-          </div>
-          
-          <div class="playback-dashboard">
-            <!-- Buttons for playback -->
-            <div class="control-buttons">
-              <button id="btn-first" class="ctrl-btn" title="처음으로"><i class="fa-solid fa-backward-fast"></i></button>
-              <button id="btn-prev" class="ctrl-btn" title="이전 단계"><i class="fa-solid fa-backward"></i></button>
-              <button id="btn-play" class="ctrl-btn play-btn" title="재생"><i class="fa-solid fa-play"></i></button>
-              <button id="btn-next" class="ctrl-btn" title="다음 단계"><i class="fa-solid fa-forward"></i></button>
-              <button id="btn-last" class="ctrl-btn" title="끝으로"><i class="fa-solid fa-forward-fast"></i></button>
-            </div>
-
-            <!-- Speed multiplier -->
-            <div class="speed-selector">
-              <label for="speed-select"><i class="fa-solid fa-gauge"></i> <span data-i18n="autoplaySpeed">배속:</span></label>
-              <select id="speed-select" class="form-control speed-control">
-                <option value="500">0.5x</option>
-                <option value="250" selected>1.0x</option>
-                <option value="125">2.0x</option>
-                <option value="50">5.0x</option>
-              </select>
-            </div>
-
-            <!-- Max Steps Controller (UX Upgrade) -->
-            <div class="speed-selector" style="margin-left: 10px;">
-              <label for="max-steps-input"><i class="fa-solid fa-hashtag"></i> <span data-i18n="maxLenLabel">최대 길이 (Rows):</span></label>
-              <input type="number" id="max-steps-input" class="form-control speed-control" min="10" max="500" step="5" value="120" style="width: 65px; text-align: center; font-weight: 700;">
-            </div>
-          </div>
+        <!-- Gallery Grid -->
+        <div id="gallery-grid" class="gallery-grid hidden">
+          <!-- Dynamically populated pattern cards -->
         </div>
       </section>
 
-      <!-- Right/Bottom Dual View Panel -->
-      <aside class="dual-viewer">
-        <!-- Tab Headers -->
-        <div class="view-tabs">
-          <button class="view-tab active" data-tab="finished"><i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="tabVirtualBraid">3D 가상 완성본 2D 뷰</span></button>
-          <button class="view-tab" data-tab="chart"><i class="fa-solid fa-table"></i> <span data-i18n="tabPatternChart">기호 도안 차트 (Pattern Chart)</span></button>
+      <!-- Detail Panel (slides in from right on card click) -->
+      <aside id="detail-panel" class="detail-panel hidden">
+        <div class="detail-header">
+          <h3 data-i18n="detailTitle">패턴 상세 정보</h3>
+          <button id="btn-close-detail" class="btn-close-detail" title="닫기">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
-
-        <!-- Tab Contents -->
-        <div class="view-contents">
-          <!-- Finished Virtual view -->
-          <div id="tab-finished" class="tab-content active">
-            <div class="viewer-description">
-              <p data-i18n="tabVirtualDesc">현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.</p>
+        <div class="detail-body">
+          <!-- Pattern preview canvas -->
+          <div class="detail-preview">
+            <canvas id="detail-canvas" width="320" height="200"></canvas>
+          </div>
+          <!-- Pattern metadata -->
+          <div class="detail-meta">
+            <div class="meta-row">
+              <span class="meta-label" data-i18n="metaPatternName">패턴 이름</span>
+              <span id="detail-name" class="meta-value">-</span>
             </div>
-            <!-- Braid Zoom Controller (i18n / UX Upgrade) -->
-            <div class="braid-zoom-bar">
-              <label for="braid-zoom-slider"><i class="fa-solid fa-magnifying-glass-plus"></i> <span data-i18n="zoomLabel">화면 배율:</span></label>
-              <input type="range" id="braid-zoom-slider" class="zoom-slider" min="0.4" max="1.5" step="0.05" value="0.70">
-              <span id="braid-zoom-val" class="zoom-value">70%</span>
+            <div class="meta-row">
+              <span class="meta-label" data-i18n="metaThreads">가닥 수</span>
+              <span id="detail-threads" class="meta-value">-</span>
             </div>
-            <!-- Braid Weaving Pitch (Density) Controller (i18n / UX Upgrade) -->
-            <div class="braid-zoom-bar" style="margin-top: -6px; margin-bottom: 16px;">
-              <label for="braid-pitch-slider"><i class="fa-solid fa-compress"></i> <span data-i18n="pitchLabel">땋임 촘촘함:</span></label>
-              <input type="range" id="braid-pitch-slider" class="zoom-slider" min="2.5" max="10.0" step="0.2" value="4.3">
-              <span id="braid-pitch-val" class="zoom-value">4.3</span>
+            <div class="meta-row">
+              <span class="meta-label" data-i18n="metaSteps">직조 단계</span>
+              <span id="detail-steps" class="meta-value">-</span>
             </div>
-            <div class="canvas-wrapper">
-              <canvas id="braid-canvas" width="320" height="500"></canvas>
+            <div class="meta-row">
+              <span class="meta-label" data-i18n="metaCreatedAt">생성일</span>
+              <span id="detail-created" class="meta-value">-</span>
             </div>
           </div>
-
-          <!-- Pattern chart view -->
-          <div id="tab-chart" class="tab-content">
-            <div class="viewer-description">
-              <p data-i18n="tabChartDesc">실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)</p>
+          <!-- Color swatches -->
+          <div class="detail-colors">
+            <h4 data-i18n="colorSwatches">사용 색상</h4>
+            <div id="detail-color-list" class="color-swatches">
+              <!-- Dynamically populated -->
             </div>
-            <div class="canvas-wrapper chart-scrollable">
-              <canvas id="chart-canvas" width="320" height="500"></canvas>
-            </div>
+          </div>
+          <!-- Actions -->
+          <div class="detail-actions">
+            <button id="btn-load-simulator" class="btn btn-primary w-100">
+              <i class="fa-solid fa-arrows-spin"></i> <span data-i18n="loadToSimulator">시뮬레이터에서 열기</span>
+            </button>
+            <button id="btn-delete-pattern" class="btn btn-danger w-100 mt-2">
+              <i class="fa-solid fa-trash"></i> <span data-i18n="deletePattern">패턴 삭제</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -225,70 +116,6 @@
     </main>
   </div>
 
-  <!-- Preset Management Modal -->
-  <div id="preset-modal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3><i class="fa-solid fa-palette"></i> <span data-i18n="presetModalTitle">컬러 프리셋 관리</span></h3>
-        <button id="modal-close" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <!-- Left Side: Add / Edit Form -->
-        <div class="modal-form">
-          <h4 id="form-title" data-i18n="presetFormTitleAdd">새 프리셋 추가</h4>
-          <div class="form-group">
-            <label for="modal-preset-color" data-i18n="presetColorLabel">색상 선택 (Color Picker)</label>
-            <div class="picker-row">
-              <input type="color" id="modal-preset-color" value="#007AFF">
-              <input type="text" id="modal-preset-hex" class="form-control" value="#007AFF" maxlength="7">
-            </div>
-          </div>
-          
-          <!-- RGB Inputs -->
-          <div class="form-group">
-            <label data-i18n="presetRgbLabel">RGB 코드 코드 직접 입력</label>
-            <div class="rgb-inputs">
-              <div class="rgb-field">
-                <span>R</span>
-                <input type="number" id="modal-preset-r" class="form-control" min="0" max="255" value="0">
-              </div>
-              <div class="rgb-field">
-                <span>G</span>
-                <input type="number" id="modal-preset-g" class="form-control" min="0" max="255" value="122">
-              </div>
-              <div class="rgb-field">
-                <span>B</span>
-                <input type="number" id="modal-preset-b" class="form-control" min="0" max="255" value="255">
-              </div>
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="modal-preset-name" data-i18n="presetNameLabel">색상 이름</label>
-            <input type="text" id="modal-preset-name" class="form-control" data-i18n-placeholder="presetNamePlaceholder" placeholder="예: 아쿠아 블루" value="애플 블루">
-          </div>
-          
-          <div class="form-actions-row">
-            <button id="btn-modal-save" class="btn btn-primary w-100" data-i18n="presetSaveBtn">저장</button>
-            <button id="btn-modal-cancel-edit" class="btn btn-secondary w-100 mt-2 hidden" data-i18n="presetCancelEditBtn">수정 취소</button>
-          </div>
-        </div>
-
-        <!-- Right Side: Preset List -->
-        <div class="modal-list-wrapper">
-          <h4 data-i18n="presetListTitle">프리셋 목록</h4>
-          <div id="modal-preset-list" class="modal-preset-list">
-            <!-- Dynamically populated -->
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="btn-modal-close-done" class="btn btn-success" data-i18n="presetModalCloseDone">완료 및 닫기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Web Application Scripts -->
-  <script type="module" src="src/main.js"></script>
+  <script type="module" src="src/gallery.js"></script>
 </body>
 </html>
