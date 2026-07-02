@@ -247,7 +247,6 @@ function renderGallery() {
         <canvas width="320" height="200"></canvas>
       </div>
       <div class="card-body">
-        <div class="card-title">${patternName}</div>
         <div class="card-meta">
           <span class="card-tag"><i class="fa-solid fa-braille"></i> ${threadsLabel}</span>
           <span class="card-tag"><i class="fa-solid fa-layer-group"></i> ${stepsLabel}</span>
@@ -302,38 +301,49 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps) {
 
   if (disk.productColors.length <= 1) return;
 
-  // --- Render the braid (mirrors main.js drawBraid logic, scaled for thumbnail) ---
-  const radius = 33;
-  const pitch = 4;
-  const scale = 0.55; // Fit 320x200 thumbnail — braid max width ~66px, scaled to ~36px
+  // --- Render the braid (mirrors main.js exactly, manually scaled for thumbnail) ---
+  // Same layout as main.js: translate to cx, hanger at top, braid flows down
+  // No ctx.scale — strandWidth set in native pixels to avoid sub-pixel gaps
+
+  const sRadius = 18;
+  const sPitch = 1.8;
+  const sStartY = 16;   // scaled equivalent of main.js y=32 (32 * 0.55 ≈ 17.6)
+  const sHangerY = 15;   // scaled equivalent of main.js y=30
+  const sHangerR = 7;    // scaled equivalent of main.js hanger radius 14
+  const sKnotW = 2.5;    // scaled equivalent of main.js lineWidth 5
 
   ctx.save();
   ctx.translate(cx, 0);
-  ctx.scale(scale, scale);
 
-  // Draw hanger
+  // Draw hanger — same structure as main.js
   ctx.beginPath();
-  ctx.arc(0, 30, 14, 0, 2 * Math.PI);
+  ctx.arc(0, sHangerY, sHangerR, 0, 2 * Math.PI);
   ctx.fillStyle = '#8a7e72';
   ctx.fill();
+
   ctx.beginPath();
-  ctx.moveTo(-5, 0);
-  ctx.lineTo(-5, 30);
-  ctx.moveTo(5, 0);
-  ctx.lineTo(5, 30);
+  ctx.moveTo(-sKnotW, 0);
+  ctx.lineTo(-sKnotW, sHangerY);
+  ctx.moveTo(sKnotW, 0);
+  ctx.lineTo(sKnotW, sHangerY);
   ctx.strokeStyle = '#a69c91';
-  ctx.lineWidth = 5;
+  ctx.lineWidth = sKnotW;
   ctx.stroke();
 
-  const maxVisibleRows = Math.floor(((height / scale) - 80) / pitch);
+  // Same maxVisibleRows calculation as main.js: (height - 80) / pitch
+  // Adjusted for thumbnail scale: (height - 40) / sPitch
+  const maxVisibleRows = Math.floor((height - 40) / sPitch);
   const endRowIdx = Math.min(disk.productColors.length, maxVisibleRows);
+
+  // Strand width: match main.js visual ratio, slightly thicker to eliminate row gaps
+  const strandWidth = Math.max(5, Math.min(12, sRadius * 0.6));
 
   const segments = [];
   for (let r = 1; r < endRowIdx; r++) {
     const prevRow = disk.productColors[r - 1];
     const currRow = disk.productColors[r];
-    const prevY = 32 + (r - 1) * pitch;
-    const currY = 32 + r * pitch;
+    const prevY = sStartY + (r - 1) * sPitch;
+    const currY = sStartY + r * sPitch;
 
     for (let i = 0; i < disk.nThreads; i++) {
       const prevThread = prevRow[i];
@@ -346,14 +356,15 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps) {
       let diff = currTheta - prevTheta;
       while (diff < -Math.PI) diff += 2 * Math.PI;
       while (diff > Math.PI) diff -= 2 * Math.PI;
+      const adjustedCurrTheta = prevTheta + diff;
 
-      const prevX = radius * Math.sin(prevTheta);
-      const prevZ = radius * Math.cos(prevTheta);
-      const currX = radius * Math.sin(prevTheta + diff);
-      const currZ = radius * Math.cos(prevTheta + diff);
-      const avgZ = (prevZ + currZ) / 2;
+      const prevX = sRadius * Math.sin(prevTheta);
+      const prevZ = sRadius * Math.cos(prevTheta);
+      const currX = sRadius * Math.sin(adjustedCurrTheta);
+      const currZ = sRadius * Math.cos(adjustedCurrTheta);
 
       if (prevZ > -12 || currZ > -12) {
+        const avgZ = (prevZ + currZ) / 2;
         segments.push({
           color: currThread.color,
           fx: prevX,
@@ -368,41 +379,24 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps) {
     }
   }
 
-  // Depth sort
+  // Global depth sort (same as main.js): back threads first, front threads last
   segments.sort((a, b) => a.avgZ - b.avgZ);
 
-  // Compute thread thickness — scale factor ensures full gap coverage between strands
-  const thick = (2 * Math.PI * radius / disk.nThreads) * 1.05;
-  const strandWidth = Math.max(5, Math.min(18, thick));
-
   segments.forEach(seg => {
-    ctx.save();
     ctx.beginPath();
     ctx.moveTo(seg.fx, seg.fy);
     ctx.lineTo(seg.tx, seg.ty);
 
-    // Lighting factor — center bright, edges dark
-    const lightingFactor = 0.52 + 0.48 * ((seg.avgZ + radius) / (2 * radius));
+    const lightingFactor = 0.52 + 0.48 * ((seg.avgZ + sRadius) / (2 * sRadius));
     const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
 
     ctx.lineWidth = strandWidth;
     ctx.lineCap = 'round';
     ctx.strokeStyle = shadedColor;
-    ctx.shadowColor = 'rgba(0,0,0,0.15)';
-    ctx.shadowBlur = 2;
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 2.5;
     ctx.shadowOffsetY = 1;
     ctx.stroke();
-
-    // Silk luster highlight
-    ctx.beginPath();
-    ctx.moveTo(seg.fx, seg.fy);
-    ctx.lineTo(seg.tx, seg.ty);
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = strandWidth * 0.3;
-    ctx.shadowColor = 'transparent';
-    ctx.stroke();
-
-    ctx.restore();
   });
 
   ctx.restore();

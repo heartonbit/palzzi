@@ -33,20 +33,37 @@
         <a href="/" class="btn btn-secondary" id="btn-gallery" title="패턴 갤러리 / Pattern Gallery">
           <i class="fa-solid fa-images"></i> <span data-i18n="galleryLink">갤러리</span>
         </a>
-        <button id="btn-export-json" class="btn btn-secondary" title="JSON으로 내보내기 / Export config to JSON">
-          <i class="fa-solid fa-file-code"></i> <span data-i18n="jsonSave">JSON 저장</span>
+        <button id="btn-settings" class="btn btn-secondary" title="설정 / Settings">
+          <i class="fa-solid fa-gear"></i>
         </button>
-        <button id="btn-import-json-trigger" class="btn btn-secondary" title="JSON 불러오기 / Import config from JSON">
-          <i class="fa-solid fa-file-import"></i> <span data-i18n="jsonLoad">JSON 불러오기</span>
-        </button>
+        <div class="dropdown">
+          <button id="btn-save-gallery" class="btn btn-success" title="갤러리에 저장 / Save to Gallery">
+            <i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="saveGalleryBtn">갤러리 저장</span>
+          </button>
+          <button id="btn-share-url" class="btn btn-warning" title="공유 링크 복사 / Copy Share URL">
+            <i class="fa-solid fa-share-nodes"></i> <span data-i18n="shareUrlBtn">공유 링크 복사</span>
+          </button>
+          <!--
+          <button id="btn-export-dropdown" class="btn btn-primary" title="내보내기 / Export">
+            <i class="fa-solid fa-download"></i> <span data-i18n="exportLabel">내보내기</span> <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:4px"></i>
+          </button>
+          -->
+          <div id="export-dropdown-menu" class="dropdown-menu hidden">
+            <button id="btn-export-png-braid" class="dropdown-item">
+              <i class="fa-solid fa-image"></i> <span data-i18n="pngBraid">완성본 (PNG)</span>
+            </button>
+            <button id="btn-export-png-chart" class="dropdown-item">
+              <i class="fa-solid fa-table"></i> <span data-i18n="pngChart">도안 (PNG)</span>
+            </button>
+            <button id="btn-export-json" class="dropdown-item">
+              <i class="fa-solid fa-file-code"></i> <span data-i18n="jsonSave">JSON 저장</span>
+            </button>
+            <button id="btn-import-json-trigger" class="dropdown-item">
+              <i class="fa-solid fa-file-import"></i> <span data-i18n="jsonLoad">JSON 불러오기</span>
+            </button>
+          </div>
+        </div>
         <input type="file" id="input-import-json" accept=".json" style="display: none;">
-        
-        <button id="btn-export-png-chart" class="btn btn-primary" title="도안을 고해상도 PNG로 내보내기 / Export chart to PNG">
-          <i class="fa-solid fa-download"></i> <span data-i18n="pngChart">도안 (PNG)</span>
-        </button>
-        <button id="btn-export-png-braid" class="btn btn-success" title="완성된 끈 이미지를 PNG로 내보내기 / Export braid to PNG">
-          <i class="fa-solid fa-image"></i> <span data-i18n="pngBraid">완성본 (PNG)</span>
-        </button>
       </div>
     </header>
 
@@ -74,75 +91,34 @@
           </div>
         </section>
 
-        <!-- 2. Color Customizer Section -->
-        <section class="panel-section">
-          <h2><i class="fa-solid fa-sliders"></i> <span data-i18n="colorCustomizer">실 색상 커스텀</span></h2>
-          <p class="section-hint" data-i18n="sectionHint">디스크 위의 실이나 아래 리스트를 누른 뒤 색상을 변경하세요.</p>
-          <div id="thread-list" class="thread-list">
-            <!-- Dynamically populated with active threads & color circles -->
-          </div>
-          <div class="color-picker-wrapper">
-            <div class="picker-controls">
-              <label for="color-picker" data-i18n="colorPickerLabel">선택된 실 색상:</label>
-              <div class="picker-row">
-                <input type="color" id="color-picker" value="#FF5733">
-                <input type="text" id="color-hex" class="form-control color-hex-input" value="#FF5733" maxlength="7">
-              </div>
-            </div>
-            <div class="color-presets">
-              <div class="preset-header-row">
-                <span class="preset-title" data-i18n="colorPresetsLabel">프리셋 컬러:</span>
-                <button id="btn-manage-presets" class="btn-preset-manage" title="프리셋 컬러 관리">
-                  <i class="fa-solid fa-sliders"></i> <span data-i18n="managePresetsBtn">관리</span>
-                </button>
-              </div>
-              <div id="preset-colors-container" class="preset-colors">
-                <!-- Dynamically populated in main.js -->
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 3. Local Storage & Sharing Section -->
-        <section class="panel-section">
-          <h2><i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="storageShare">저장 및 공유</span></h2>
-          <div class="storage-actions">
-            <button id="btn-save-gallery" class="btn btn-success w-100">
-              <i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="saveGalleryBtn">갤러리에 저장 (Firebase)</span>
-            </button>
-            <button id="btn-save-local" class="btn btn-info w-100 mt-2">
-              <i class="fa-solid fa-bookmark"></i> <span data-i18n="saveLocalBtn">내 보관함에 저장 (Browser)</span>
-            </button>
-            <button id="btn-load-local" class="btn btn-secondary w-100 mt-2">
-              <i class="fa-solid fa-folder-open"></i> <span data-i18n="loadLocalBtn">보관함 불러오기</span>
-            </button>
-            <button id="btn-share-url" class="btn btn-warning w-100 mt-2">
-              <i class="fa-solid fa-share-nodes"></i> <span data-i18n="shareUrlBtn">공유 링크 복사 (URL)</span>
-            </button>
-          </div>
-          <div id="toast-message" class="toast hidden">상태 메시지가 여기에 표시됩니다.</div>
-        </section>
       </aside>
 
       <!-- Center Simulator Panel -->
       <section class="workspace-center">
         
-        <!-- Disk Header containing step numbers -->
-        <div class="workspace-header">
-          <div class="step-badge">
-            <span class="label" data-i18n="stepLabel">PROGRESS:</span>
-            <span id="step-counter" class="value">Step 0 / 120</span>
-          </div>
-          <div class="step-guide">
-            <i class="fa-solid fa-circle-info"></i> <span id="guide-text">로딩 중...</span>
-          </div>
-        </div>
-
         <!-- 2D Disk Display Panel -->
         <div class="disk-canvas-container">
           <canvas id="disk-canvas" width="480" height="480"></canvas>
-          <div class="disk-overlay-hint" data-i18n="dragHint">
-            <i class="fa-solid fa-arrows-spin"></i> 마우스로 실을 드래그하거나 아래 컨트롤러를 이용해 직조하세요.
+          <!-- Color Popup (appears near clicked thread) -->
+          <div id="color-popup" class="color-popup hidden">
+            <div class="popup-header">
+              <span id="popup-title" data-i18n="popupTitle">실 색상 선택</span>
+              <button id="popup-close" class="popup-close-btn">&times;</button>
+            </div>
+            <div id="popup-presets" class="popup-presets">
+              <!-- Dynamically populated with preset color circles -->
+            </div>
+            <div class="popup-divider"></div>
+            <div class="popup-custom">
+              <div class="popup-picker-row">
+                <input type="color" id="popup-color-picker" value="#FF5733">
+                <input type="text" id="popup-color-hex" class="form-control popup-hex-input" value="#FF5733" maxlength="7">
+              </div>
+              <div class="popup-name-row">
+                <input type="text" id="popup-color-name" class="form-control popup-name-input" data-i18n-placeholder="popupNamePlaceholder" placeholder="새 색상 이름" maxlength="20">
+                <button id="popup-save-btn" class="btn btn-sm btn-success" data-i18n="popupSaveBtn">저장</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -166,23 +142,6 @@
               <button id="btn-next" class="ctrl-btn" title="다음 단계"><i class="fa-solid fa-forward"></i></button>
               <button id="btn-last" class="ctrl-btn" title="끝으로"><i class="fa-solid fa-forward-fast"></i></button>
             </div>
-
-            <!-- Speed multiplier -->
-            <div class="speed-selector">
-              <label for="speed-select"><i class="fa-solid fa-gauge"></i> <span data-i18n="autoplaySpeed">배속:</span></label>
-              <select id="speed-select" class="form-control speed-control">
-                <option value="500">0.5x</option>
-                <option value="250" selected>1.0x</option>
-                <option value="125">2.0x</option>
-                <option value="50">5.0x</option>
-              </select>
-            </div>
-
-            <!-- Max Steps Controller (UX Upgrade) -->
-            <div class="speed-selector" style="margin-left: 10px;">
-              <label for="max-steps-input"><i class="fa-solid fa-hashtag"></i> <span data-i18n="maxLenLabel">최대 길이 (Rows):</span></label>
-              <input type="number" id="max-steps-input" class="form-control speed-control" min="10" max="500" step="5" value="120" style="width: 65px; text-align: center; font-weight: 700;">
-            </div>
           </div>
         </div>
       </section>
@@ -199,21 +158,6 @@
         <div class="view-contents">
           <!-- Finished Virtual view -->
           <div id="tab-finished" class="tab-content active">
-            <div class="viewer-description">
-              <p data-i18n="tabVirtualDesc">현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.</p>
-            </div>
-            <!-- Braid Zoom Controller (i18n / UX Upgrade) -->
-            <div class="braid-zoom-bar">
-              <label for="braid-zoom-slider"><i class="fa-solid fa-magnifying-glass-plus"></i> <span data-i18n="zoomLabel">화면 배율:</span></label>
-              <input type="range" id="braid-zoom-slider" class="zoom-slider" min="0.4" max="1.5" step="0.05" value="0.70">
-              <span id="braid-zoom-val" class="zoom-value">70%</span>
-            </div>
-            <!-- Braid Weaving Pitch (Density) Controller (i18n / UX Upgrade) -->
-            <div class="braid-zoom-bar" style="margin-top: -6px; margin-bottom: 16px;">
-              <label for="braid-pitch-slider"><i class="fa-solid fa-compress"></i> <span data-i18n="pitchLabel">땋임 촘촘함:</span></label>
-              <input type="range" id="braid-pitch-slider" class="zoom-slider" min="2.5" max="10.0" step="0.2" value="4.3">
-              <span id="braid-pitch-val" class="zoom-value">4.3</span>
-            </div>
             <div class="canvas-wrapper">
               <canvas id="braid-canvas" width="320" height="500"></canvas>
             </div>
@@ -221,9 +165,6 @@
 
           <!-- Pattern chart view -->
           <div id="tab-chart" class="tab-content">
-            <div class="viewer-description">
-              <p data-i18n="tabChartDesc">실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)</p>
-            </div>
             <div class="canvas-wrapper chart-scrollable">
               <canvas id="chart-canvas" width="320" height="500"></canvas>
             </div>
@@ -232,6 +173,77 @@
       </aside>
 
     </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content settings-modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear"></i> <span data-i18n="settingsTitle">설정</span></h3>
+        <button id="settings-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Braid Display Settings -->
+        <section class="settings-section">
+          <h4 data-i18n="settingsDisplay"><i class="fa-solid fa-eye"></i> 브레이드 표시 설정</h4>
+          <div class="settings-row">
+            <label for="settings-braid-zoom" data-i18n="zoomLabel">화면 배율:</label>
+            <div class="settings-slider-row">
+              <input type="range" id="settings-braid-zoom" min="0.4" max="1.5" step="0.05" value="0.70" class="zoom-slider">
+              <span id="settings-braid-zoom-val" class="zoom-value">70%</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label for="settings-pitch" data-i18n="pitchLabel">땋임 촘촘함:</label>
+            <div class="settings-slider-row">
+              <input type="range" id="settings-pitch" min="1.5" max="10.0" step="0.1" value="3.5" class="zoom-slider">
+              <span id="settings-pitch-val" class="zoom-value">3.5</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label for="settings-strand-width" data-i18n="strandWidthLabel">실 굵기:</label>
+            <div class="settings-slider-row">
+              <input type="range" id="settings-strand-width" min="0.3" max="1.2" step="0.05" value="0.6" class="zoom-slider">
+              <span id="settings-strand-width-val" class="zoom-value">0.60</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Playback Settings -->
+        <section class="settings-section">
+          <h4 data-i18n="settingsPlayback"><i class="fa-solid fa-play"></i> 재생 설정</h4>
+          <div class="settings-row">
+            <label for="settings-speed" data-i18n="autoplaySpeed">배속:</label>
+            <select id="settings-speed" class="form-control">
+              <option value="500">0.5x</option>
+              <option value="250" selected>1.0x</option>
+              <option value="125">2.0x</option>
+              <option value="50">5.0x</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label for="settings-max-steps" data-i18n="maxLenLabel">최대 길이:</label>
+            <input type="number" id="settings-max-steps" class="form-control" min="10" max="500" step="5" value="120" style="width:70px;text-align:center;font-weight:700">
+          </div>
+        </section>
+
+        <!-- Storage -->
+        <section class="settings-section">
+          <h4 data-i18n="settingsStorage"><i class="fa-solid fa-bookmark"></i> 저장</h4>
+          <div class="settings-actions">
+            <button id="btn-save-local" class="btn btn-info w-100">
+              <i class="fa-solid fa-bookmark"></i> <span data-i18n="saveLocalBtn">내 보관함에 저장</span>
+            </button>
+            <button id="btn-load-local" class="btn btn-secondary w-100 mt-2">
+              <i class="fa-solid fa-folder-open"></i> <span data-i18n="loadLocalBtn">보관함 불러오기</span>
+            </button>
+          </div>
+        </section>
+
+      </div>
+      <div id="toast-message" class="toast hidden">상태 메시지</div>
+    </div>
   </div>
 
   <!-- Preset Management Modal -->
@@ -246,29 +258,10 @@
         <div class="modal-form">
           <h4 id="form-title" data-i18n="presetFormTitleAdd">새 프리셋 추가</h4>
           <div class="form-group">
-            <label for="modal-preset-color" data-i18n="presetColorLabel">색상 선택 (Color Picker)</label>
+            <label for="modal-preset-hex" data-i18n="presetColorLabel">색상 선택 (Color Picker)</label>
             <div class="picker-row">
               <input type="color" id="modal-preset-color" value="#007AFF">
               <input type="text" id="modal-preset-hex" class="form-control" value="#007AFF" maxlength="7">
-            </div>
-          </div>
-          
-          <!-- RGB Inputs -->
-          <div class="form-group">
-            <label data-i18n="presetRgbLabel">RGB 코드 코드 직접 입력</label>
-            <div class="rgb-inputs">
-              <div class="rgb-field">
-                <span>R</span>
-                <input type="number" id="modal-preset-r" class="form-control" min="0" max="255" value="0">
-              </div>
-              <div class="rgb-field">
-                <span>G</span>
-                <input type="number" id="modal-preset-g" class="form-control" min="0" max="255" value="122">
-              </div>
-              <div class="rgb-field">
-                <span>B</span>
-                <input type="number" id="modal-preset-b" class="form-control" min="0" max="255" value="255">
-              </div>
             </div>
           </div>
           

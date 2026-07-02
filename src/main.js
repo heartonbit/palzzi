@@ -4,6 +4,9 @@ import { db } from './firebase/config.js';
 import {
   collection,
   addDoc,
+  doc,
+  setDoc,
+  getDoc,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
@@ -33,6 +36,7 @@ const TRANSLATIONS = {
     saveLocalBtn: "내 보관함에 저장 (Browser)",
     loadLocalBtn: "보관함 불러오기",
     shareUrlBtn: "공유 링크 복사 (URL)",
+    copyUrlBtn: "URL 복사",
     stepLabel: "PROGRESS:",
     stepCounterPrefix: "스텝",
     autoplaySpeed: "배속:",
@@ -43,7 +47,12 @@ const TRANSLATIONS = {
     tabChartDesc: "실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)",
     zoomLabel: "화면 배율:",
     pitchLabel: "땋임 촘촘함:",
-    dragHint: "마우스로 실을 드래그하거나 아래 컨트롤러를 이용해 직조하세요.",
+    dragHint: "아래 컨트롤러를 이용해 직조하세요.",
+    popupTitle: "실 색상 선택",
+    popupNamePlaceholder: "새 색상 이름",
+    popupSaveBtn: "저장",
+    toastPresetSaved: "새 색상이 프리셋에 저장되었습니다!",
+    toastColorApplied: "실 색상이 변경되었습니다!",
     toastSaveLocal: "브라우저 내 보관함에 저장되었습니다!",
     toastLoadLocal: "보관함 데이터를 성공적으로 복구했습니다!",
     toastNoLocal: "저장된 보관함 데이터가 없습니다.",
@@ -64,7 +73,6 @@ const TRANSLATIONS = {
     presetFormTitleAdd: "새 프리셋 추가",
     presetFormTitleEdit: "프리셋 수정 (#",
     presetColorLabel: "색상 선택 (Color Picker)",
-    presetRgbLabel: "RGB 코드 직접 입력",
     presetNameLabel: "색상 이름",
     presetNamePlaceholder: "예: 아쿠아 블루",
     presetSaveBtn: "저장",
@@ -75,10 +83,16 @@ const TRANSLATIONS = {
     presetAddedMsg: "등록 완료!",
     presetEditedMsg: "수정 완료!",
     galleryLink: "갤러리",
-    saveGalleryBtn: "갤러리에 저장 (Firebase)",
+    saveGalleryBtn: "저장",
     toastSaveGallery: "갤러리에 저장되었습니다!",
     toastSaveGalleryError: "갤러리 저장에 실패했습니다.",
     galleryPatternName: "내 쿠미히모 패턴",
+    strandWidthLabel: "실 굵기:",
+    settingsTitle: "설정",
+    settingsDisplay: "브레이드 표시 설정",
+    settingsPlayback: "재생 설정",
+    settingsStorage: "저장 및 공유",
+    exportLabel: "내보내기",
     signInWithGoogle: "Google 로그인",
     signOut: "로그아웃",
     signInRequired: "갤러리에 저장하려면 먼저 로그인하세요.",
@@ -106,6 +120,7 @@ const TRANSLATIONS = {
     saveLocalBtn: "Save to Browser Pocket",
     loadLocalBtn: "Load from Pocket",
     shareUrlBtn: "Copy Share Link (URL)",
+    copyUrlBtn: "Copy URL",
     stepLabel: "PROGRESS:",
     stepCounterPrefix: "Step",
     autoplaySpeed: "Speed:",
@@ -116,7 +131,12 @@ const TRANSLATIONS = {
     tabChartDesc: "Visualizes thread transposition history in a pattern grid. (X-axis: thread, Y-axis: step)",
     zoomLabel: "View Zoom:",
     pitchLabel: "Braid Tension:",
-    dragHint: "Drag threads on the disk or use playback buttons below to braid.",
+    dragHint: "Use the playback controls below to braid.",
+    popupTitle: "Thread Color",
+    popupNamePlaceholder: "New color name",
+    popupSaveBtn: "Save",
+    toastPresetSaved: "New color saved to presets!",
+    toastColorApplied: "Thread color changed!",
     toastSaveLocal: "Successfully saved to browser pocket!",
     toastLoadLocal: "Pocket data successfully recovered!",
     toastNoLocal: "No pocket data found.",
@@ -137,7 +157,6 @@ const TRANSLATIONS = {
     presetFormTitleAdd: "Add New Preset",
     presetFormTitleEdit: "Edit Preset (#",
     presetColorLabel: "Select Color (Color Picker)",
-    presetRgbLabel: "Enter RGB Code Directly",
     presetNameLabel: "Color Name",
     presetNamePlaceholder: "e.g., Aqua Blue",
     presetSaveBtn: "Save",
@@ -148,10 +167,16 @@ const TRANSLATIONS = {
     presetAddedMsg: "added successfully!",
     presetEditedMsg: "updated successfully!",
     galleryLink: "Gallery",
-    saveGalleryBtn: "Save to Gallery (Firebase)",
+    saveGalleryBtn: "Save",
     toastSaveGallery: "Saved to gallery!",
     toastSaveGalleryError: "Failed to save to gallery.",
     galleryPatternName: "My Kumihimo Pattern",
+    strandWidthLabel: "Strand width:",
+    settingsTitle: "Settings",
+    settingsDisplay: "Braid Display",
+    settingsPlayback: "Playback",
+    settingsStorage: "Storage & Sharing",
+    exportLabel: "Export",
     signInWithGoogle: "Sign in with Google",
     signOut: "Sign out",
     signInRequired: "Please sign in first to save to gallery.",
@@ -170,7 +195,35 @@ let isPlaying = false;
 let playInterval = null;
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
 let braidZoom = 0.70; // Braid viewer scale level. Default is zoom out 70% (UX upgrade)
-let braidPitch = 4.3; // Braid weaving compactness pitch spacing (UX Upgrade)
+let braidPitch = 3.5; // Braid weaving compactness pitch spacing
+let strandWidthRatio = 0.6; // Strand width as ratio of radius (controls thickness)
+
+// Auto-adjust pitch and strand width based on thread count for optimal preview
+function autoAdjustBraidParams() {
+  const n = disk.nThreads;
+  if (n <= 8) {
+    braidPitch = 3.5;
+    strandWidthRatio = 0.60;
+  } else if (n <= 16) {
+    braidPitch = 3.0;
+    strandWidthRatio = 0.45;
+  } else if (n <= 28) {
+    braidPitch = 2.5;
+    strandWidthRatio = 0.35;
+  } else {
+    braidPitch = 2.0;
+    strandWidthRatio = 0.25;
+  }
+  // Sync settings sliders to reflect the new values
+  const settingsPitch = document.getElementById('settings-pitch');
+  const settingsPitchVal = document.getElementById('settings-pitch-val');
+  const settingsStrandWidth = document.getElementById('settings-strand-width');
+  const settingsStrandWidthVal = document.getElementById('settings-strand-width-val');
+  if (settingsPitch) settingsPitch.value = braidPitch;
+  if (settingsPitchVal) settingsPitchVal.textContent = braidPitch.toFixed(1);
+  if (settingsStrandWidth) settingsStrandWidth.value = strandWidthRatio;
+  if (settingsStrandWidthVal) settingsStrandWidthVal.textContent = strandWidthRatio.toFixed(2);
+}
 
 // Color Presets Manager State (doc/7_UI)
 let presetColors = [
@@ -187,11 +240,6 @@ let presetColors = [
 ];
 let editingPresetIndex = -1; // -1 for "Add New", >=0 for "Edit Existing"
 
-// Interactive Drag & Drop variables
-let isDragging = false;
-let dragThreadIdx = -1; // Index in state (0 to 31)
-let dragMousePos = { x: 0, y: 0 };
-let dragTargetSlot = -1;
 
 // DOM Elements
 const templateSelect = document.getElementById('template-select');
@@ -202,22 +250,28 @@ const threadListContainer = document.getElementById('thread-list');
 const colorPicker = document.getElementById('color-picker');
 const colorHex = document.getElementById('color-hex');
 const presetColorsContainer = document.getElementById('preset-colors-container');
+const btnManagePresets = document.getElementById('btn-manage-presets');
 const toastMessage = document.getElementById('toast-message');
+
+// Color Popup DOM Elements
+const colorPopup = document.getElementById('color-popup');
+const popupPresetsContainer = document.getElementById('popup-presets');
+const popupColorPicker = document.getElementById('popup-color-picker');
+const popupColorHex = document.getElementById('popup-color-hex');
+const popupColorName = document.getElementById('popup-color-name');
+const popupSaveBtn = document.getElementById('popup-save-btn');
+const popupCloseBtn = document.getElementById('popup-close');
 
 // i18n Selector Buttons
 const btnLangKo = document.getElementById('btn-lang-ko');
 const btnLangEn = document.getElementById('btn-lang-en');
 
 // Modal Elements (doc/7_UI)
-const btnManagePresets = document.getElementById('btn-manage-presets');
 const presetModal = document.getElementById('preset-modal');
 const modalClose = document.getElementById('modal-close');
 const btnModalCloseDone = document.getElementById('btn-modal-close-done');
 const modalPresetColor = document.getElementById('modal-preset-color');
 const modalPresetHex = document.getElementById('modal-preset-hex');
-const modalPresetR = document.getElementById('modal-preset-r');
-const modalPresetG = document.getElementById('modal-preset-g');
-const modalPresetB = document.getElementById('modal-preset-b');
 const modalPresetName = document.getElementById('modal-preset-name');
 const btnModalSave = document.getElementById('btn-modal-save');
 const btnModalCancelEdit = document.getElementById('btn-modal-cancel-edit');
@@ -239,7 +293,6 @@ const btnPrev = document.getElementById('btn-prev');
 const btnPlay = document.getElementById('btn-play');
 const btnNext = document.getElementById('btn-next');
 const btnLast = document.getElementById('btn-last');
-const speedSelect = document.getElementById('speed-select');
 
 // Storage & Export Buttons
 const authArea = document.getElementById('auth-area');
@@ -296,6 +349,9 @@ function init() {
   onAuthChange((user) => {
     currentUser = user;
     updateAuthUI(user);
+    if (user) {
+      loadUserColorsFromFirestore();
+    }
   });
 
   // Load custom color presets from localStorage if saved (doc/7_UI)
@@ -424,6 +480,9 @@ function loadTemplate(tmpl, customColors = null) {
   // Reset engine disk state
   resetSimulationToStep(currentStep);
 
+  // Auto-adjust braid preview params based on thread count
+  autoAdjustBraidParams();
+
   // Update UI Elements and translations
   updateTemplateDisplayMetadata();
   
@@ -449,6 +508,7 @@ function resetSimulationToStep(step) {
 
 // Refresh active threads colors list on the left panel
 function populateThreadList() {
+  if (!threadListContainer) return;
   threadListContainer.innerHTML = '';
   for (let i = 0; i < threadColors.length; i++) {
     const item = document.createElement('div');
@@ -479,6 +539,7 @@ function populateThreadList() {
 }
 
 function updateColorPickerUI() {
+  if (!colorPicker || !colorHex) return;
   if (selectedThreadIndex >= 0 && selectedThreadIndex < threadColors.length) {
     const color = threadColors[selectedThreadIndex];
     colorPicker.value = color;
@@ -487,37 +548,9 @@ function updateColorPickerUI() {
 }
 
 function updatePlaybackUI() {
-  stepCounter.textContent = `${TRANSLATIONS[currentLang].stepCounterPrefix} ${currentStep} / ${MAX_STEPS}`;
+  if (stepCounter) stepCounter.textContent = `${TRANSLATIONS[currentLang].stepCounterPrefix} ${currentStep} / ${MAX_STEPS}`;
   progressBar.value = currentStep;
   progressPercentage.textContent = `${Math.round((currentStep / MAX_STEPS) * 100)}%`;
-  
-  // Generate user guide text based on the next move and current i18n
-  updateGuideText();
-}
-
-function updateGuideText() {
-  if (currentStep >= MAX_STEPS) {
-    guideText.textContent = TRANSLATIONS[currentLang].guideComplete;
-    return;
-  }
-  
-  // Find current active group on the disk to guide the user
-  const nPairs = disk.nThreads / 2;
-  const startPos = (disk.slotsCount - disk.rowIndex) % disk.slotsCount;
-  
-  const tl = startPos;
-  const tr = (startPos + 1) % disk.slotsCount;
-  const br = (startPos + (disk.slotsCount / 2)) % disk.slotsCount;
-  
-  const trSlot = tr + 1;
-  const targetBrSlot = ((br - 1 + disk.slotsCount) % disk.slotsCount) + 1;
-  
-  // Symmetrical translation guide
-  if (currentLang === 'ko') {
-    guideText.textContent = `[우측 상단] ${trSlot}번 슬롯 실을 아래 ${targetBrSlot}번으로 이동시켜 시작하세요.`;
-  } else {
-    guideText.textContent = `[Top Right] Move slot ${trSlot} thread down to slot ${targetBrSlot} to start.`;
-  }
 }
 
 // --- Renderers ---
@@ -707,59 +740,12 @@ function drawDisk() {
     const targetTl = (tl - 1 + disk.slotsCount) % disk.slotsCount;
     drawActiveArrow(bl, targetTl, '#34c759', 'BL');
   }
-
-  // 6. Draw currently dragging thread if any
-  if (isDragging && dragThreadIdx !== -1) {
-    const color = disk.state[dragThreadIdx].color;
-    ctxDisk.save();
-    ctxDisk.beginPath();
-    ctxDisk.moveTo(cx, cy);
-    ctxDisk.lineTo(dragMousePos.x, dragMousePos.y);
-    ctxDisk.strokeStyle = color;
-    ctxDisk.lineWidth = 10;
-    ctxDisk.lineCap = 'round';
-    ctxDisk.stroke();
-    
-    // Terminal ball
-    ctxDisk.beginPath();
-    ctxDisk.arc(dragMousePos.x, dragMousePos.y, 12, 0, 2 * Math.PI);
-    ctxDisk.fillStyle = color;
-    ctxDisk.fill();
-    ctxDisk.strokeStyle = '#ffffff';
-    ctxDisk.lineWidth = 2;
-    ctxDisk.stroke();
-    ctxDisk.restore();
-
-    // Draw active target slot highligting
-    if (dragTargetSlot !== -1) {
-      const angle = (dragTargetSlot * 2 * Math.PI) / disk.slotsCount - Math.PI / 2;
-      const tx = cx + (rDisk - 15) * Math.cos(angle);
-      const ty = cy + (rDisk - 15) * Math.sin(angle);
-      ctxDisk.beginPath();
-      ctxDisk.arc(tx, ty, 18, 0, 2 * Math.PI);
-      ctxDisk.fillStyle = 'rgba(0, 122, 255, 0.2)';
-      ctxDisk.strokeStyle = '#007aff';
-      ctxDisk.lineWidth = 2;
-      ctxDisk.fill();
-      ctxDisk.stroke();
-    }
-  }
 }
 
-// Function to check if a specific slot index is mapped to the current selected thread colors index
+// Check if a slot currently holds the selected thread (uses disk.state, not initial positions)
 function isThreadSelectedAtSlot(slotIdx) {
-  const nPairs = disk.nThreads / 2;
-  const distance = disk.slotsCount / nPairs;
-
-  // Find original index
-  for (let i = 0; i < nPairs; i++) {
-    const idx1 = Math.round(i * distance) % disk.slotsCount;
-    const idx2 = (idx1 + 1) % disk.slotsCount;
-
-    if (idx1 === slotIdx && (i * 2) === selectedThreadIndex) return true;
-    if (idx2 === slotIdx && (i * 2 + 1) === selectedThreadIndex) return true;
-  }
-  return false;
+  const thread = disk.state[slotIdx];
+  return thread && thread.id === selectedThreadIndex;
 }
 
 // Draw Curved Arrow Guide between slots
@@ -949,9 +935,8 @@ function drawBraid() {
     ctxBraid.moveTo(seg.fx, seg.fy);
     ctxBraid.lineTo(seg.tx, seg.ty);
     
-    // Compute thread thickness - slightly higher scaling multiplier for full gap coverage
-    const thick = (2 * Math.PI * radius / nThreads) * 1.05;
-    const strandWidth = Math.max(5, Math.min(18, thick));
+    // Compute thread thickness — controlled by strandWidthRatio slider
+    const strandWidth = Math.max(5, Math.min(18, radius * strandWidthRatio));
     
     ctxBraid.lineWidth = strandWidth;
     ctxBraid.lineCap = 'round';
@@ -1149,57 +1134,10 @@ function getThreadIndexFromCoords(mx, my) {
 }
 
 // Convert slot index on disk to original colors panel thread index (0 to nThreads-1)
+// Map a disk slot to the thread color index — uses current disk.state (accounts for weaving rotation)
 function mapDiskSlotToThreadColorIdx(slotIdx) {
-  const nPairs = disk.nThreads / 2;
-  const distance = disk.slotsCount / nPairs;
-  
-  for (let i = 0; i < nPairs; i++) {
-    const idx1 = Math.round(i * distance) % disk.slotsCount;
-    const idx2 = (idx1 + 1) % disk.slotsCount;
-    if (idx1 === slotIdx) return i * 2;
-    if (idx2 === slotIdx) return i * 2 + 1;
-  }
-  return -1;
-}
-
-// Identify which slot notch was hovered during drag
-function getNotchIndexFromCoords(mx, my) {
-  const cx = diskCanvas.width / 2;
-  const cy = diskCanvas.height / 2;
-  const rDisk = 180;
-  
-  for (let i = 0; i < disk.slotsCount; i++) {
-    const angle = (i * 2 * Math.PI) / disk.slotsCount - Math.PI / 2;
-    const xSlot = cx + rDisk * Math.cos(angle);
-    const ySlot = cy + rDisk * Math.sin(angle);
-    const dist = Math.hypot(mx - xSlot, my - ySlot);
-    if (dist < 20) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// Validate if the drag-and-drop motion corresponds to the active guided step rules
-function validateDragMove(fromSlot, toSlot) {
-  if (currentStep >= MAX_STEPS) return false;
-  
-  const nPairs = disk.nThreads / 2;
-  const startPos = (disk.slotsCount - disk.rowIndex) % disk.slotsCount;
-  
-  const tl = startPos;
-  const tr = (startPos + 1) % disk.slotsCount;
-  const br = (startPos + (disk.slotsCount / 2)) % disk.slotsCount;
-  const bl = (br + 1) % disk.slotsCount;
-  
-  const targetBr = (br - 1 + disk.slotsCount) % disk.slotsCount;
-  const targetTl = (tl - 1 + disk.slotsCount) % disk.slotsCount;
-  
-  // Either Top-Right to Bottom-Right - 1, OR Bottom-Left to Top-Left - 1
-  if (fromSlot === tr && toSlot === targetBr) return 'TR';
-  if (fromSlot === bl && toSlot === targetTl) return 'BL';
-  
-  return null;
+  const thread = disk.state[slotIdx];
+  return thread ? thread.id : -1;
 }
 
 // Show temporary feedback toast message
@@ -1215,62 +1153,233 @@ function showToast(msg) {
 function updateSelectedThreadColor(color) {
   if (selectedThreadIndex >= 0 && selectedThreadIndex < threadColors.length) {
     threadColors[selectedThreadIndex] = color;
-    populateThreadList();
+    if (threadListContainer) populateThreadList();
+    if (colorPicker || colorHex) updateColorPickerUI();
     resetSimulationToStep(currentStep);
     renderAll();
+    saveUserColorsToFirestore();
+}
+}
+
+// --- Color Popup Logic ---
+function showColorPopup(clientX, clientY) {
+  if (!colorPopup) return;
+
+  // Populate preset circles
+  popupPresetsContainer.innerHTML = '';
+  presetColors.forEach(preset => {
+    const btn = document.createElement('button');
+    btn.className = 'popup-preset-btn';
+    btn.style.backgroundColor = preset.hex;
+    btn.title = `${getPresetName(preset)} (${preset.hex})`;
+    btn.addEventListener('click', () => {
+      updateSelectedThreadColor(preset.hex);
+      hideColorPopup();
+      showToast(TRANSLATIONS[currentLang].toastColorApplied);
+    });
+    popupPresetsContainer.appendChild(btn);
+  });
+
+  // Sync color picker to current thread color
+  if (selectedThreadIndex >= 0 && selectedThreadIndex < threadColors.length) {
+    popupColorPicker.value = threadColors[selectedThreadIndex];
+    popupColorHex.value = threadColors[selectedThreadIndex];
   }
+  popupColorName.value = '';
+
+  // Position popup near the click
+  const container = diskCanvas.parentElement;
+  const containerRect = container.getBoundingClientRect();
+  const popupWidth = 180;
+  const popupMaxHeight = 320;
+
+  let left = clientX - containerRect.left + 12;
+  let top = clientY - containerRect.top - 10;
+
+  // Keep popup within container bounds
+  if (left + popupWidth > containerRect.width) {
+    left = containerRect.width - popupWidth - 8;
+  }
+  if (left < 8) left = 8;
+  if (top + popupMaxHeight > containerRect.height) {
+    top = containerRect.height - popupMaxHeight - 8;
+  }
+  if (top < 8) top = 8;
+
+  colorPopup.style.left = left + 'px';
+  colorPopup.style.top = top + 'px';
+  colorPopup.classList.remove('hidden');
+}
+
+function hideColorPopup() {
+  if (colorPopup) colorPopup.classList.add('hidden');
 }
 
 // --- Events Setup ---
 function setupEventListeners() {
 
-  // Braid Zoom Controller (UX Upgrade)
-  const braidZoomSlider = document.getElementById('braid-zoom-slider');
-  const braidZoomVal = document.getElementById('braid-zoom-val');
-  if (braidZoomSlider) {
-    braidZoomSlider.addEventListener('input', (e) => {
+  // Settings Modal Controls
+  const settingsBtn = document.getElementById('btn-settings');
+  const settingsModal = document.getElementById('settings-modal');
+  const settingsClose = document.getElementById('settings-close');
+
+  // Color Popup event handlers
+  if (popupCloseBtn) {
+    popupCloseBtn.addEventListener('click', hideColorPopup);
+  }
+
+  if (popupColorPicker) {
+    popupColorPicker.addEventListener('input', (e) => {
+      const newColor = e.target.value;
+      if (popupColorHex) popupColorHex.value = newColor;
+      updateSelectedThreadColor(newColor);
+      renderAll();
+    });
+  }
+
+  if (popupColorHex) {
+    popupColorHex.addEventListener('change', (e) => {
+      let newColor = e.target.value.trim();
+      if (/^#[0-9A-F]{6}$/i.test(newColor)) {
+        if (popupColorPicker) popupColorPicker.value = newColor;
+        updateSelectedThreadColor(newColor);
+        renderAll();
+      } else {
+        showToast(currentLang === 'ko' ? "올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)" : "Please enter a valid HEX code (e.g., #FF5733)");
+      }
+    });
+  }
+
+  if (popupSaveBtn) {
+    popupSaveBtn.addEventListener('click', () => {
+      const name = popupColorName.value.trim();
+      const hex = popupColorHex.value.trim();
+      if (!name) {
+        showToast(currentLang === 'ko' ? "색상 이름을 입력해주세요." : "Please enter a color name.");
+        return;
+      }
+      if (!/^#[0-9A-F]{6}$/i.test(hex)) {
+        showToast(currentLang === 'ko' ? "올바른 HEX 코드를 입력해주세요." : "Please enter a valid HEX code.");
+        return;
+      }
+      const preset = { name_ko: name, name_en: name, hex };
+      presetColors.push(preset);
+      savePresetsToStorage();
+      renderPresetColors();
+      showToast(TRANSLATIONS[currentLang].toastPresetSaved);
+      // Refresh popup preset list
+      popupPresetsContainer.innerHTML = '';
+      presetColors.forEach(preset => {
+        const btn = document.createElement('button');
+        btn.className = 'popup-preset-btn';
+        btn.style.backgroundColor = preset.hex;
+        btn.title = `${getPresetName(preset)} (${preset.hex})`;
+        btn.addEventListener('click', () => {
+          updateSelectedThreadColor(preset.hex);
+          hideColorPopup();
+          showToast(TRANSLATIONS[currentLang].toastColorApplied);
+        });
+        popupPresetsContainer.appendChild(btn);
+      });
+    });
+  }
+
+  // Close popup when clicking outside
+  document.addEventListener('mousedown', (e) => {
+    if (colorPopup && !colorPopup.classList.contains('hidden') && !colorPopup.contains(e.target) && e.target !== diskCanvas) {
+      hideColorPopup();
+    }
+  });
+
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      settingsModal.classList.remove('hidden');
+    });
+  }
+  if (settingsClose) {
+    settingsClose.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+    });
+  }
+  if (settingsModal) {
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) settingsModal.classList.add('hidden');
+    });
+  }
+
+  // Export Dropdown
+  const exportDropdownBtn = document.getElementById('btn-export-dropdown');
+  const exportDropdownMenu = document.getElementById('export-dropdown-menu');
+  if (exportDropdownBtn) {
+    exportDropdownBtn.addEventListener('click', () => {
+      exportDropdownMenu.classList.toggle('hidden');
+    });
+  }
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (exportDropdownMenu && !exportDropdownMenu.classList.contains('hidden') &&
+        !e.target.closest('#btn-export-dropdown') && !e.target.closest('#export-dropdown-menu')) {
+      exportDropdownMenu.classList.add('hidden');
+    }
+  });
+
+  // Settings: Braid Zoom
+  const settingsZoom = document.getElementById('settings-braid-zoom');
+  const settingsZoomVal = document.getElementById('settings-braid-zoom-val');
+  if (settingsZoom) {
+    settingsZoom.addEventListener('input', (e) => {
       braidZoom = parseFloat(e.target.value);
-      if (braidZoomVal) braidZoomVal.textContent = `${Math.round(braidZoom * 100)}%`;
+      if (settingsZoomVal) settingsZoomVal.textContent = `${Math.round(braidZoom * 100)}%`;
       renderAll();
     });
   }
 
-  // Braid Weaving Pitch Controller (UX Upgrade)
-  const braidPitchSlider = document.getElementById('braid-pitch-slider');
-  const braidPitchVal = document.getElementById('braid-pitch-val');
-  if (braidPitchSlider) {
-    braidPitchSlider.addEventListener('input', (e) => {
+  // Settings: Pitch
+  const settingsPitch = document.getElementById('settings-pitch');
+  const settingsPitchVal = document.getElementById('settings-pitch-val');
+  if (settingsPitch) {
+    settingsPitch.addEventListener('input', (e) => {
       braidPitch = parseFloat(e.target.value);
-      if (braidPitchVal) braidPitchVal.textContent = braidPitch.toFixed(1);
+      if (settingsPitchVal) settingsPitchVal.textContent = braidPitch.toFixed(1);
       renderAll();
     });
   }
 
-  // Max Steps Controller (UX Upgrade)
-  const maxStepsInput = document.getElementById('max-steps-input');
-  if (maxStepsInput) {
-    maxStepsInput.addEventListener('change', (e) => {
+  // Settings: Strand Width
+  const settingsStrandWidth = document.getElementById('settings-strand-width');
+  const settingsStrandWidthVal = document.getElementById('settings-strand-width-val');
+  if (settingsStrandWidth) {
+    settingsStrandWidth.addEventListener('input', (e) => {
+      strandWidthRatio = parseFloat(e.target.value);
+      if (settingsStrandWidthVal) settingsStrandWidthVal.textContent = strandWidthRatio.toFixed(2);
+      renderAll();
+    });
+  }
+
+  // Settings: Speed
+  const settingsSpeed = document.getElementById('settings-speed');
+  if (settingsSpeed) {
+    settingsSpeed.addEventListener('change', (e) => {
+      playSpeed = parseInt(e.target.value);
+    });
+  }
+
+  // Settings: Max Steps
+  const settingsMaxSteps = document.getElementById('settings-max-steps');
+  if (settingsMaxSteps) {
+    settingsMaxSteps.addEventListener('change', (e) => {
       let val = parseInt(e.target.value, 10);
-      
-      // Bounds checking (e.g. min 10, max 1000)
       if (isNaN(val) || val < 10) val = 10;
       if (val > 1000) val = 1000;
-      
       e.target.value = val;
       MAX_STEPS = val;
-      
-      // Update progress bar max
       progressBar.max = MAX_STEPS;
-      
-      // Clamp currentStep to new MAX_STEPS
       if (currentStep > MAX_STEPS) {
         currentStep = MAX_STEPS;
         resetSimulationToStep(currentStep);
       }
-      
       updatePlaybackUI();
       renderAll();
-      showToast(currentLang === 'ko' ? `최대 길이가 ${MAX_STEPS}행으로 설정되었습니다!` : `Max length updated to ${MAX_STEPS} rows!`);
     });
   }
 
@@ -1279,11 +1388,13 @@ function setupEventListeners() {
   btnLangEn.addEventListener('click', () => setLanguage('en'));
 
   // Preset Manager Modal Control (doc/7_UI)
-  btnManagePresets.addEventListener('click', () => {
-    presetModal.classList.remove('hidden');
-    renderModalPresetList();
-    cancelEditPreset();
-  });
+  if (btnManagePresets) {
+    btnManagePresets.addEventListener('click', () => {
+      presetModal.classList.remove('hidden');
+      renderModalPresetList();
+      cancelEditPreset();
+    });
+  }
 
   const closeModalFunc = () => {
     presetModal.classList.add('hidden');
@@ -1298,51 +1409,18 @@ function setupEventListeners() {
     }
   });
 
-  // Modal Color Picker -> HEX / RGB Sync
+  // Modal Color Picker -> HEX Sync
   modalPresetColor.addEventListener('input', (e) => {
-    const hex = e.target.value;
-    modalPresetHex.value = hex;
-    const rgb = hexToRgb(hex);
-    modalPresetR.value = rgb.r;
-    modalPresetG.value = rgb.g;
-    modalPresetB.value = rgb.b;
+    modalPresetHex.value = e.target.value;
   });
 
-  // Modal HEX Text -> Color Picker / RGB Sync
+  // Modal HEX Text -> Color Picker Sync
   modalPresetHex.addEventListener('input', (e) => {
     const hex = e.target.value.trim();
     if (/^#[0-9A-F]{6}$/i.test(hex)) {
       modalPresetColor.value = hex;
-      const rgb = hexToRgb(hex);
-      modalPresetR.value = rgb.r;
-      modalPresetG.value = rgb.g;
-      modalPresetB.value = rgb.b;
     }
   });
-
-  // Modal RGB Inputs -> Color Picker / HEX Sync
-  const syncFromRgbInputs = () => {
-    const r = parseInt(modalPresetR.value, 10) || 0;
-    const g = parseInt(modalPresetG.value, 10) || 0;
-    const b = parseInt(modalPresetB.value, 10) || 0;
-    
-    // Bounds clamping
-    const clampedR = Math.max(0, Math.min(255, r));
-    const clampedG = Math.max(0, Math.min(255, g));
-    const clampedB = Math.max(0, Math.min(255, b));
-    
-    modalPresetR.value = clampedR;
-    modalPresetG.value = clampedG;
-    modalPresetB.value = clampedB;
-
-    const hex = rgbToHex(clampedR, clampedG, clampedB);
-    modalPresetColor.value = hex;
-    modalPresetHex.value = hex;
-  };
-
-  modalPresetR.addEventListener('input', syncFromRgbInputs);
-  modalPresetG.addEventListener('input', syncFromRgbInputs);
-  modalPresetB.addEventListener('input', syncFromRgbInputs);
 
   // Modal Form Actions
   btnModalSave.addEventListener('click', savePreset);
@@ -1360,21 +1438,25 @@ function setupEventListeners() {
   });
 
   // 2. Color customizer change
-  colorPicker.addEventListener('input', (e) => {
-    const newColor = e.target.value;
-    colorHex.value = newColor;
-    updateSelectedThreadColor(newColor);
-  });
-  
-  colorHex.addEventListener('change', (e) => {
-    let newColor = e.target.value.trim();
-    if (/^#[0-9A-F]{6}$/i.test(newColor)) {
-      colorPicker.value = newColor;
+  if (colorPicker) {
+    colorPicker.addEventListener('input', (e) => {
+      const newColor = e.target.value;
+      if (colorHex) colorHex.value = newColor;
       updateSelectedThreadColor(newColor);
-    } else {
-      showToast(currentLang === 'ko' ? "올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)" : "Please enter a valid HEX code (e.g., #FF5733)");
-    }
-  });
+    });
+  }
+
+  if (colorHex) {
+    colorHex.addEventListener('change', (e) => {
+      let newColor = e.target.value.trim();
+      if (/^#[0-9A-F]{6}$/i.test(newColor)) {
+        if (colorPicker) colorPicker.value = newColor;
+        updateSelectedThreadColor(newColor);
+      } else {
+        showToast(currentLang === 'ko' ? "올바른 HEX 컬러 코드를 입력해주세요. (예: #FF5733)" : "Please enter a valid HEX code (e.g., #FF5733)");
+      }
+    });
+  }
 
   // Preset color buttons - 이벤트 리스너는 renderPresetColors() 함수에서 동적으로 추가됨
 
@@ -1544,34 +1626,18 @@ function setupEventListeners() {
     showToast(currentLang === 'ko' ? "완성 이미지 PNG 다운로드 완료!" : "Finished braid PNG downloaded!");
   });
 
-  // 5. Canvas mouse/touch drag events for interactive braiding
-  diskCanvas.addEventListener('mousedown', onDragStart);
-  diskCanvas.addEventListener('mousemove', onDragMove);
-  window.addEventListener('mouseup', onDragEnd);
-  
+  // 5. Canvas click event for thread selection
+  diskCanvas.addEventListener('mousedown', onDiskClick);
+
   // Touch support for mobile devices
   diskCanvas.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
-    const rect = diskCanvas.getBoundingClientRect();
-    onDragStart({
+    onDiskClick({
       clientX: touch.clientX,
       clientY: touch.clientY,
       preventDefault: () => e.preventDefault()
     });
   }, { passive: false });
-
-  diskCanvas.addEventListener('touchmove', (e) => {
-    const touch = e.touches[0];
-    onDragMove({
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-      preventDefault: () => e.preventDefault()
-    });
-  }, { passive: false });
-
-  window.addEventListener('touchend', () => {
-    onDragEnd();
-  });
 
   // 6. View Tabs Switching
   tabButtons.forEach(btn => {
@@ -1587,87 +1653,25 @@ function setupEventListeners() {
   });
 }
 
-function onDragStart(e) {
+function onDiskClick(e) {
   const rect = diskCanvas.getBoundingClientRect();
   const mx = (e.clientX - rect.left) * (diskCanvas.width / rect.width);
   const my = (e.clientY - rect.top) * (diskCanvas.height / rect.height);
-  
+
   const slotIdx = getThreadIndexFromCoords(mx, my);
   if (slotIdx !== -1) {
     if (e.preventDefault) e.preventDefault();
-    
-    // Select this thread in left list
+
+    // Select this thread and show color popup
     const mappedColorIdx = mapDiskSlotToThreadColorIdx(slotIdx);
     if (mappedColorIdx !== -1) {
       selectedThreadIndex = mappedColorIdx;
       populateThreadList();
       updateColorPickerUI();
-    }
-    
-    // Check if we can initiate drag
-    if (currentStep < MAX_STEPS) {
-      const nPairs = disk.nThreads / 2;
-      const startPos = (disk.slotsCount - disk.rowIndex) % disk.slotsCount;
-      const tr = (startPos + 1) % disk.slotsCount;
-      const bl = (startPos + (disk.slotsCount / 2) + 1) % disk.slotsCount;
-      
-      // We only allow dragging TR or BL of the current step
-      if (slotIdx === tr || slotIdx === bl) {
-        isDragging = true;
-        dragThreadIdx = slotIdx;
-        dragMousePos = { x: mx, y: my };
-        dragTargetSlot = -1;
-        renderAll();
-      }
+      showColorPopup(e.clientX, e.clientY);
+      renderAll();
     }
   }
-}
-
-function onDragMove(e) {
-  if (!isDragging) return;
-  if (e.preventDefault) e.preventDefault();
-  
-  const rect = diskCanvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (diskCanvas.width / rect.width);
-  const my = (e.clientY - rect.top) * (diskCanvas.height / rect.height);
-  
-  dragMousePos = { x: mx, y: my };
-  
-  // Find hover notch
-  const hoverNotch = getNotchIndexFromCoords(mx, my);
-  if (hoverNotch !== -1) {
-    const moveType = validateDragMove(dragThreadIdx, hoverNotch);
-    if (moveType) {
-      dragTargetSlot = hoverNotch;
-    } else {
-      dragTargetSlot = -1;
-    }
-  } else {
-    dragTargetSlot = -1;
-  }
-  
-  renderAll();
-}
-
-function onDragEnd() {
-  if (!isDragging) return;
-  isDragging = false;
-  
-  if (dragTargetSlot !== -1) {
-    // A correct step is dragged! 
-    try {
-      disk.weaveRow();
-      currentStep = disk.rowIndex;
-      updatePlaybackUI();
-      showToast(TRANSLATIONS[currentLang].toastStepSuccess);
-    } catch (err) {
-      showToast(`${currentLang === 'ko' ? '직조 실패' : 'Weaving error'}: ${err.message}`);
-    }
-  }
-  
-  dragThreadIdx = -1;
-  dragTargetSlot = -1;
-  renderAll();
 }
 
 // --- Color Presets i18n Helpers (doc/7_UI) ---
@@ -1679,6 +1683,7 @@ function getPresetName(preset) {
 
 // Render color presets circle buttons on the left panel
 function renderPresetColors() {
+  if (!presetColorsContainer) return;
   presetColorsContainer.innerHTML = '';
   presetColors.forEach(preset => {
     const btn = document.createElement('button');
@@ -1688,8 +1693,8 @@ function renderPresetColors() {
     btn.dataset.color = preset.hex;
 
     btn.addEventListener('click', () => {
-      colorPicker.value = preset.hex;
-      colorHex.value = preset.hex;
+      if (colorPicker) colorPicker.value = preset.hex;
+      if (colorHex) colorHex.value = preset.hex;
       updateSelectedThreadColor(preset.hex);
     });
 
@@ -1782,12 +1787,7 @@ function startEditPreset(idx) {
   modalPresetColor.value = preset.hex;
   modalPresetHex.value = preset.hex;
   modalPresetName.value = getPresetName(preset);
-  
-  const rgb = hexToRgb(preset.hex);
-  modalPresetR.value = rgb.r;
-  modalPresetG.value = rgb.g;
-  modalPresetB.value = rgb.b;
-  
+
   formTitle.textContent = `${TRANSLATIONS[currentLang].presetFormTitleEdit}${idx + 1})`;
   btnModalCancelEdit.classList.remove('hidden');
   btnModalSave.textContent = currentLang === 'ko' ? '수정 완료' : 'Update';
@@ -1800,11 +1800,7 @@ function cancelEditPreset() {
   modalPresetColor.value = '#007AFF';
   modalPresetHex.value = '#007AFF';
   modalPresetName.value = currentLang === 'ko' ? '애플 블루' : 'Apple Blue';
-  
-  modalPresetR.value = 0;
-  modalPresetG.value = 122;
-  modalPresetB.value = 255;
-  
+
   formTitle.textContent = TRANSLATIONS[currentLang].presetFormTitleAdd;
   btnModalCancelEdit.classList.add('hidden');
   btnModalSave.textContent = TRANSLATIONS[currentLang].presetSaveBtn;
@@ -1831,6 +1827,42 @@ function deletePreset(idx) {
 // Save presets to localStorage
 function savePresetsToStorage() {
   localStorage.setItem('palzzi-custom-presets', JSON.stringify(presetColors));
+}
+
+// --- Firestore User Colors Persistence ---
+async function saveUserColorsToFirestore() {
+  if (!currentUser) return;
+  try {
+    const userDocRef = doc(db, 'userColors', currentUser.uid);
+    await setDoc(userDocRef, {
+      templateId: activeTemplate.id,
+      colors: [...threadColors],
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.error('Error saving user colors to Firestore:', err);
+  }
+}
+
+async function loadUserColorsFromFirestore() {
+  if (!currentUser) return;
+  try {
+    const userDocRef = doc(db, 'userColors', currentUser.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      // Only load colors if the template matches
+      if (data.templateId === activeTemplate.id && data.colors) {
+        threadColors = [...data.colors];
+        if (threadListContainer) populateThreadList();
+        if (colorPicker || colorHex) updateColorPickerUI();
+        resetSimulationToStep(currentStep);
+        renderAll();
+      }
+    }
+  } catch (err) {
+    console.error('Error loading user colors from Firestore:', err);
+  }
 }
 
 // Save Form (Add or Edit)
@@ -1934,7 +1966,7 @@ function togglePlay() {
     btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
     showToast(TRANSLATIONS[currentLang].toastAutoplayStart);
     
-    const intervalTime = parseInt(speedSelect.value, 10);
+    const intervalTime = parseInt(document.getElementById('settings-speed')?.value || '250', 10);
     playInterval = setInterval(() => {
       if (currentStep < MAX_STEPS) {
         try {
