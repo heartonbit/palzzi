@@ -1205,3 +1205,24 @@ body {
   color: #ff3b30;
   border-color: #ff3b30;
 }
+
+/* Ad Units */
+.ad-section {
+  border-bottom: none;
+  min-height: 250px;
+}
+
+.ad-sidebar {
+  min-height: 250px;
+  min-width: 280px;
+}
+
+.ad-playback-wrapper {
+  width: 100%;
+  max-width: 500px;
+  min-height: 90px;
+}
+
+.ad-playback {
+  min-height: 90px;
+}

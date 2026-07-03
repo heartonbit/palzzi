@@ -573,6 +573,19 @@ body {
   border-color: var(--danger-color);
 }
 
+/* Gallery Ad Banner */
+.ad-gallery-banner-wrapper {
+  width: 100%;
+  max-width: 728px;
+  min-height: 90px;
+  margin: 16px auto 0;
+  text-align: center;
+}
+
+.ad-gallery-banner {
+  min-height: 90px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .gallery-grid {

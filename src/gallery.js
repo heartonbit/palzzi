@@ -14,6 +14,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
 import { KumihimoDisk } from './engine/kumihimo.js';
+import { initAdSense, injectGalleryBannerAd } from './ads.js';
 
 // --- i18n Translations (subset for gallery page) ---
 const GALLERY_TRANSLATIONS = {
@@ -145,6 +146,10 @@ function init() {
   });
 
   setupEventListeners();
+
+  // Inject AdSense ads (IDs from .env via import.meta.env)
+  initAdSense();
+  injectGalleryBannerAd(document.querySelector('.gallery-area'));
 }
 
 function setLanguage(lang) {
@@ -258,9 +263,9 @@ function renderGallery() {
       </div>
     `;
 
-    // Render braid preview on card canvas
+    // Render braid preview on card canvas (diagonal tilt)
     const canvas = card.querySelector('canvas');
-    drawBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120);
+    drawBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120, -25);
 
     card.addEventListener('click', () => {
       selectedPattern = pattern;
@@ -272,11 +277,10 @@ function renderGallery() {
 }
 
 // --- Draw braid preview on a small canvas using the real KumihimoDisk engine ---
-function drawBraidPreview(canvas, colors, nThreads, maxSteps) {
+function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
-  const cx = width / 2;
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = '#f8f9fa';
@@ -312,8 +316,16 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps) {
   const sHangerR = 7;    // scaled equivalent of main.js hanger radius 14
   const sKnotW = 2.5;    // scaled equivalent of main.js lineWidth 5
 
+  const tiltAngle = tiltDeg * Math.PI / 180;
+
   ctx.save();
-  ctx.translate(cx, 0);
+  if (tiltAngle !== 0) {
+    // Diagonal: position hanger in upper-left area so braid flows diagonally down-right
+    ctx.translate(width * 0.25, height * 0.06);
+    ctx.rotate(tiltAngle);
+  } else {
+    ctx.translate(width / 2, 0);
+  }
 
   // Draw hanger — same structure as main.js
   ctx.beginPath();
@@ -442,8 +454,8 @@ function showDetail(pattern) {
     detailCreated.textContent = t.unknownDate;
   }
 
-  // Draw detail braid preview
-  drawBraidPreview(detailCanvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120);
+  // Draw detail braid preview (diagonal tilt)
+  drawBraidPreview(detailCanvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120, -25);
 
   // Render color swatches
   detailColorList.innerHTML = '';

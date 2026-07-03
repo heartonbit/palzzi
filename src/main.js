@@ -10,6 +10,7 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
+import { initAdSense, injectSidebarAd, injectPlaybackAd } from './ads.js';
 
 // --- Multilingual i18n Translations Dictionary (doc/2_PRD) ---
 const TRANSLATIONS = {
@@ -375,6 +376,11 @@ function init() {
   // Render initially
   renderPresetColors();
   renderAll();
+
+  // Inject AdSense ads (IDs from .env via import.meta.env)
+  initAdSense();
+  injectSidebarAd(document.querySelector('.control-panel'));
+  injectPlaybackAd(document.querySelector('.workspace-center'));
 }
 
 // i18n Translation Engine Changer
