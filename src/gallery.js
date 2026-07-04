@@ -13,7 +13,8 @@ import {
   doc
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
-import { KumihimoDisk } from './engine/kumihimo.js';
+import { KumihimoDisk, calcBraidRadius, calcBraidPitch } from './engine/kumihimo.js';
+import { BRAID_CONTEXTS, CULLING_RATIO, LIGHTING_MIN, LIGHTING_RANGE } from './braid-config.js';
 import { initAdSense, injectGalleryBannerAd } from './ads.js';
 
 // --- i18n Translations (subset for gallery page) ---
@@ -21,7 +22,6 @@ const GALLERY_TRANSLATIONS = {
   ko: {
     galleryTitle: "Palzzi - 쿠미히모 패턴 갤러리",
     logoTitle: "Palzzi",
-    galleryBadge: "갤러리",
     backToSimulator: "시뮬레이터로",
     galleryHeading: "쿠미히모 패턴 갤러리",
     gallerySubtitle: "Firebase에 저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.",
@@ -31,7 +31,6 @@ const GALLERY_TRANSLATIONS = {
     detailTitle: "패턴 상세 정보",
     metaPatternName: "패턴 이름",
     metaThreads: "가닥 수",
-    metaSteps: "직조 단계",
     metaCreatedAt: "생성일",
     colorSwatches: "사용 색상",
     loadToSimulator: "시뮬레이터에서 열기",
@@ -40,7 +39,8 @@ const GALLERY_TRANSLATIONS = {
     deleteSuccess: "패턴이 삭제되었습니다.",
     deleteFailed: "삭제에 실패했습니다.",
     threadsUnit: "가닥",
-    stepsUnit: "단계",
+    metaCreator: "만든 이",
+    metaThreadLength: "20cm 팔찌 실 길이",
     unknownPattern: "알 수 없는 패턴",
     unknownDate: "날짜 없음",
     signInWithGoogle: "Google 로그인",
@@ -51,7 +51,6 @@ const GALLERY_TRANSLATIONS = {
   en: {
     galleryTitle: "Palzzi - Kumihimo Pattern Gallery",
     logoTitle: "Palzzi",
-    galleryBadge: "Gallery",
     backToSimulator: "To Simulator",
     galleryHeading: "Kumihimo Pattern Gallery",
     gallerySubtitle: "Browse Kumihimo patterns saved to Firebase. Click a card to see details.",
@@ -61,7 +60,6 @@ const GALLERY_TRANSLATIONS = {
     detailTitle: "Pattern Details",
     metaPatternName: "Pattern Name",
     metaThreads: "Threads",
-    metaSteps: "Weave Steps",
     metaCreatedAt: "Created At",
     colorSwatches: "Colors Used",
     loadToSimulator: "Open in Simulator",
@@ -70,7 +68,8 @@ const GALLERY_TRANSLATIONS = {
     deleteSuccess: "Pattern deleted successfully.",
     deleteFailed: "Failed to delete pattern.",
     threadsUnit: "strands",
-    stepsUnit: "steps",
+    metaCreator: "Creator",
+    metaThreadLength: "Thread Length for 20cm bracelet",
     unknownPattern: "Unknown Pattern",
     unknownDate: "No date",
     signInWithGoogle: "Sign in with Google",
@@ -97,7 +96,8 @@ const btnCloseDetail = document.getElementById('btn-close-detail');
 const detailCanvas = document.getElementById('detail-canvas');
 const detailName = document.getElementById('detail-name');
 const detailThreads = document.getElementById('detail-threads');
-const detailSteps = document.getElementById('detail-steps');
+const detailThreadLength = document.getElementById('detail-thread-length');
+const detailCreator = document.getElementById('detail-creator');
 const detailCreated = document.getElementById('detail-created');
 const detailColorList = document.getElementById('detail-color-list');
 const btnLoadSimulator = document.getElementById('btn-load-simulator');
@@ -245,7 +245,8 @@ function renderGallery() {
       : (pattern.nameEn || pattern.templateName || t.unknownPattern);
 
     const threadsLabel = pattern.nThreads ? `${pattern.nThreads}${t.threadsUnit}` : '-';
-    const stepsLabel = pattern.maxSteps ? `${pattern.maxSteps}${t.stepsUnit}` : '-';
+    const ownerName = pattern.ownerName || 'Anonymous';
+    const ownerPhoto = pattern.ownerPhoto || '';
 
     card.innerHTML = `
       <div class="card-preview">
@@ -254,11 +255,15 @@ function renderGallery() {
       <div class="card-body">
         <div class="card-meta">
           <span class="card-tag"><i class="fa-solid fa-braille"></i> ${threadsLabel}</span>
-          <span class="card-tag"><i class="fa-solid fa-layer-group"></i> ${stepsLabel}</span>
+          <span class="card-owner">${ownerPhoto ? `<img src="${ownerPhoto}" alt="" class="card-owner-avatar" referrerpolicy="no-referrer">` : `<span class="card-owner-avatar card-owner-initial">${ownerName.charAt(0).toUpperCase()}</span>`}<span class="card-owner-name">${ownerName}</span></span>
         </div>
         <div class="card-colors">
-          ${(pattern.colors || []).slice(0, 8).map(c => `<div class="card-color-dot" style="background-color:${c}"></div>`).join('')}
-          ${(pattern.colors || []).length > 8 ? `<span class="card-tag">+${(pattern.colors || []).length - 8}</span>` : ''}
+          ${(() => {
+            const unique = [...new Set(pattern.colors || [])];
+            const show = unique.slice(0, 8);
+            const extra = unique.length > 8 ? `<span class="card-tag">+${unique.length - 8}</span>` : '';
+            return show.map(c => `<div class="card-color-dot" style="background-color:${c}"></div>`).join('') + extra;
+          })()}
         </div>
       </div>
     `;
@@ -298,9 +303,16 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
   const disk = new KumihimoDisk(nThreads);
   disk.init(threadColors);
 
-  const simSteps = Math.min(maxSteps, 80);
+  // Calculate pitch first to determine how many rows are needed to fill the canvas
+  const sBaseRadius = BRAID_CONTEXTS.gallery.baseRadius;
+  const sRadius = calcBraidRadius(nThreads, sBaseRadius);
+  const sPitch = calcBraidPitch(nThreads, sRadius);
+  const maxVisibleRows = Math.floor((height - 40) / sPitch);
+
+  // Simulate extra rows beyond the canvas so the braid overflows naturally (canvas clips the rest)
+  const simSteps = Math.min(maxSteps, Math.floor(maxVisibleRows * 2));
   for (let s = 0; s < simSteps; s++) {
-    disk.weaveRow();
+    disk.weaveRowFast();
   }
 
   if (disk.productColors.length <= 1) return;
@@ -309,8 +321,6 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
   // Same layout as main.js: translate to cx, hanger at top, braid flows down
   // No ctx.scale — strandWidth set in native pixels to avoid sub-pixel gaps
 
-  const sRadius = 18;
-  const sPitch = 1.8;
   const sStartY = 16;   // scaled equivalent of main.js y=32 (32 * 0.55 ≈ 17.6)
   const sHangerY = 15;   // scaled equivalent of main.js y=30
   const sHangerR = 7;    // scaled equivalent of main.js hanger radius 14
@@ -342,13 +352,10 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
   ctx.lineWidth = sKnotW;
   ctx.stroke();
 
-  // Same maxVisibleRows calculation as main.js: (height - 80) / pitch
-  // Adjusted for thumbnail scale: (height - 40) / sPitch
-  const maxVisibleRows = Math.floor((height - 40) / sPitch);
-  const endRowIdx = Math.min(disk.productColors.length, maxVisibleRows);
+  const endRowIdx = disk.productColors.length;
 
   // Strand width: match main.js visual ratio, slightly thicker to eliminate row gaps
-  const strandWidth = Math.max(5, Math.min(12, sRadius * 0.6));
+  const strandWidth = Math.max(BRAID_CONTEXTS.gallery.strandWidthMin, Math.min(BRAID_CONTEXTS.gallery.strandWidthMax, sBaseRadius * BRAID_CONTEXTS.gallery.strandWidthRatio));
 
   const segments = [];
   for (let r = 1; r < endRowIdx; r++) {
@@ -375,7 +382,7 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
       const currX = sRadius * Math.sin(adjustedCurrTheta);
       const currZ = sRadius * Math.cos(adjustedCurrTheta);
 
-      if (prevZ > -12 || currZ > -12) {
+      if (prevZ > -sRadius * CULLING_RATIO || currZ > -sRadius * CULLING_RATIO) {
         const avgZ = (prevZ + currZ) / 2;
         segments.push({
           color: currThread.color,
@@ -399,7 +406,7 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
     ctx.moveTo(seg.fx, seg.fy);
     ctx.lineTo(seg.tx, seg.ty);
 
-    const lightingFactor = 0.52 + 0.48 * ((seg.avgZ + sRadius) / (2 * sRadius));
+    const lightingFactor = LIGHTING_MIN + LIGHTING_RANGE * ((seg.avgZ + sRadius) / (2 * sRadius));
     const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
 
     ctx.lineWidth = strandWidth;
@@ -444,7 +451,17 @@ function showDetail(pattern) {
     : (pattern.nameEn || pattern.templateName || t.unknownPattern);
   detailName.textContent = patternName;
   detailThreads.textContent = pattern.nThreads ? `${pattern.nThreads}${t.threadsUnit}` : '-';
-  detailSteps.textContent = pattern.maxSteps ? `${pattern.maxSteps}${t.stepsUnit}` : '-';
+  
+  // Calculate thread length for 20cm bracelet
+  // Formula: desired length × 3.5 + 30cm (12 inches) for knotting/finishing
+  // Reference: Kumihimo braiding consumes ~3-3.5× braid length per thread
+  const braceletLengthCm = 20;
+  const threadMultiplier = 3.5;
+  const finishingAllowanceCm = 30; // ~12 inches for knotting and finishing
+  const threadLengthPerStrand = Math.ceil(braceletLengthCm * threadMultiplier + finishingAllowanceCm);
+  detailThreadLength.textContent = pattern.nThreads ? `약 ${threadLengthPerStrand}cm × ${pattern.nThreads}${t.threadsUnit}` : '-';
+  
+  detailCreator.textContent = pattern.ownerName || 'Anonymous';
 
   if (pattern.createdAt && pattern.createdAt.toDate) {
     detailCreated.textContent = pattern.createdAt.toDate().toLocaleDateString();

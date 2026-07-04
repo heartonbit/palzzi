@@ -1,4 +1,5 @@
-import { KumihimoDisk } from './engine/kumihimo.js';
+import { KumihimoDisk, calcBraidRadius, calcBraidPitch } from './engine/kumihimo.js';
+import { BRAID_CONTEXTS, CULLING_RATIO, LIGHTING_MIN, LIGHTING_RANGE, MAX_STEPS } from './braid-config.js';
 import { KUMIHIMO_TEMPLATES } from './templates/templates.js';
 import { db } from './firebase/config.js';
 import {
@@ -7,6 +8,11 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  startAfter,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
@@ -24,24 +30,16 @@ const TRANSLATIONS = {
     templateSelect: "템플릿 선택",
     patternTemplate: "패턴 템플릿",
     metaThreads: " 가닥",
-    metaDifficulty: "난이도: ",
-    diffEasy: "쉬움",
-    diffMedium: "보통",
-    diffHard: "어려움",
     colorCustomizer: "실 색상 커스텀",
     colorPickerLabel: "선택된 실 색상:",
     colorPresetsLabel: "프리셋 컬러:",
     managePresetsBtn: "관리",
     sectionHint: "디스크 위의 실이나 아래 리스트를 누른 뒤 색상을 변경하세요.",
     storageShare: "저장 및 공유",
-    saveLocalBtn: "내 보관함에 저장 (Browser)",
-    loadLocalBtn: "보관함 불러오기",
     shareUrlBtn: "공유 링크 복사 (URL)",
     copyUrlBtn: "URL 복사",
     stepLabel: "PROGRESS:",
     stepCounterPrefix: "스텝",
-    autoplaySpeed: "배속:",
-    maxLenLabel: "최대 길이 (Rows):",
     tabVirtualBraid: "3D 가상 완성본 2D 뷰",
     tabPatternChart: "기호 도안 차트 (Pattern Chart)",
     tabVirtualDesc: "현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.",
@@ -54,9 +52,6 @@ const TRANSLATIONS = {
     popupSaveBtn: "저장",
     toastPresetSaved: "새 색상이 프리셋에 저장되었습니다!",
     toastColorApplied: "실 색상이 변경되었습니다!",
-    toastSaveLocal: "브라우저 내 보관함에 저장되었습니다!",
-    toastLoadLocal: "보관함 데이터를 성공적으로 복구했습니다!",
-    toastNoLocal: "저장된 보관함 데이터가 없습니다.",
     toastShareUrl: "공유 링크가 클립보드에 복사되었습니다!",
     toastExportJson: "JSON 파일 저장 완료!",
     toastImportJson: "JSON 설정 불러오기 완료!",
@@ -88,15 +83,20 @@ const TRANSLATIONS = {
     toastSaveGallery: "갤러리에 저장되었습니다!",
     toastSaveGalleryError: "갤러리 저장에 실패했습니다.",
     galleryPatternName: "내 쿠미히모 패턴",
+    savePatternPrompt: "패턴 이름을 입력하세요:",
     strandWidthLabel: "실 굵기:",
     settingsTitle: "설정",
     settingsDisplay: "브레이드 표시 설정",
-    settingsPlayback: "재생 설정",
     settingsStorage: "저장 및 공유",
     exportLabel: "내보내기",
     signInWithGoogle: "Google 로그인",
     signOut: "로그아웃",
     signInRequired: "갤러리에 저장하려면 먼저 로그인하세요.",
+    sidebarTitle: "패턴 갤러리",
+    sidebarLoading: "불러오는 중...",
+    sidebarThreadsUnit: "가닥",
+    sidebarStepsUnit: "단계",
+    sidebarUnknown: "알 수 없는 패턴",
   },
   en: {
     title: "Palzzi - Kumihimo 2D Simulator",
@@ -108,24 +108,16 @@ const TRANSLATIONS = {
     templateSelect: "Select Template",
     patternTemplate: "Pattern Template",
     metaThreads: " Strands",
-    metaDifficulty: "Difficulty: ",
-    diffEasy: "Easy",
-    diffMedium: "Medium",
-    diffHard: "Hard",
     colorCustomizer: "Thread Colors",
     colorPickerLabel: "Selected Color:",
     colorPresetsLabel: "Presets:",
     managePresetsBtn: "Manage",
     sectionHint: "Click threads on the disk or list below, then choose a color.",
     storageShare: "Save & Share",
-    saveLocalBtn: "Save to Browser Pocket",
-    loadLocalBtn: "Load from Pocket",
     shareUrlBtn: "Copy Share Link (URL)",
     copyUrlBtn: "Copy URL",
     stepLabel: "PROGRESS:",
     stepCounterPrefix: "Step",
-    autoplaySpeed: "Speed:",
-    maxLenLabel: "Max Length (Rows):",
     tabVirtualBraid: "3D Virtual Braid View",
     tabPatternChart: "Pattern Chart View",
     tabVirtualDesc: "Displays the spiral twists of the braid up to the current step in a 2D cylindrical projection.",
@@ -138,9 +130,6 @@ const TRANSLATIONS = {
     popupSaveBtn: "Save",
     toastPresetSaved: "New color saved to presets!",
     toastColorApplied: "Thread color changed!",
-    toastSaveLocal: "Successfully saved to browser pocket!",
-    toastLoadLocal: "Pocket data successfully recovered!",
-    toastNoLocal: "No pocket data found.",
     toastShareUrl: "Share link copied to clipboard!",
     toastExportJson: "JSON config exported successfully!",
     toastImportJson: "JSON config imported successfully!",
@@ -172,15 +161,20 @@ const TRANSLATIONS = {
     toastSaveGallery: "Saved to gallery!",
     toastSaveGalleryError: "Failed to save to gallery.",
     galleryPatternName: "My Kumihimo Pattern",
+    savePatternPrompt: "Enter pattern name:",
     strandWidthLabel: "Strand width:",
     settingsTitle: "Settings",
     settingsDisplay: "Braid Display",
-    settingsPlayback: "Playback",
     settingsStorage: "Storage & Sharing",
     exportLabel: "Export",
     signInWithGoogle: "Sign in with Google",
     signOut: "Sign out",
     signInRequired: "Please sign in first to save to gallery.",
+    sidebarTitle: "Pattern Gallery",
+    sidebarLoading: "Loading...",
+    sidebarThreadsUnit: "strands",
+    sidebarStepsUnit: "steps",
+    sidebarUnknown: "Unknown Pattern",
   }
 };
 
@@ -191,39 +185,23 @@ let disk = new KumihimoDisk(8);
 let activeTemplate = KUMIHIMO_TEMPLATES[2]; // Default: 8-Strand Candy Cane
 let threadColors = [...activeTemplate.defaultColors];
 let currentStep = 0;
-let MAX_STEPS = 120; // Changed to let to allow dynamic adjustments in UI (UX Upgrade)
-let isPlaying = false;
-let playInterval = null;
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
 let braidZoom = 0.70; // Braid viewer scale level. Default is zoom out 70% (UX upgrade)
+let braidRadius = BRAID_CONTEXTS.main.baseRadius; // Cylinder radius (dynamically adjusted per thread count)
 let braidPitch = 3.5; // Braid weaving compactness pitch spacing
-let strandWidthRatio = 0.6; // Strand width as ratio of radius (controls thickness)
+let strandWidthRatio = BRAID_CONTEXTS.main.strandWidthRatio; // Strand width as ratio of base radius (controls thickness)
 
-// Auto-adjust pitch and strand width based on thread count for optimal preview
+// Auto-adjust radius and pitch based on thread count for optimal preview
+// Strand width remains fixed (user preference) — radius and pitch scale dynamically
 function autoAdjustBraidParams() {
   const n = disk.nThreads;
-  if (n <= 8) {
-    braidPitch = 3.5;
-    strandWidthRatio = 0.60;
-  } else if (n <= 16) {
-    braidPitch = 3.0;
-    strandWidthRatio = 0.45;
-  } else if (n <= 28) {
-    braidPitch = 2.5;
-    strandWidthRatio = 0.35;
-  } else {
-    braidPitch = 2.0;
-    strandWidthRatio = 0.25;
-  }
-  // Sync settings sliders to reflect the new values
+  braidRadius = calcBraidRadius(n, BRAID_CONTEXTS.main.baseRadius);
+  braidPitch = calcBraidPitch(n, braidRadius);
+  // Sync settings pitch slider to reflect the new value
   const settingsPitch = document.getElementById('settings-pitch');
   const settingsPitchVal = document.getElementById('settings-pitch-val');
-  const settingsStrandWidth = document.getElementById('settings-strand-width');
-  const settingsStrandWidthVal = document.getElementById('settings-strand-width-val');
   if (settingsPitch) settingsPitch.value = braidPitch;
   if (settingsPitchVal) settingsPitchVal.textContent = braidPitch.toFixed(1);
-  if (settingsStrandWidth) settingsStrandWidth.value = strandWidthRatio;
-  if (settingsStrandWidthVal) settingsStrandWidthVal.textContent = strandWidthRatio.toFixed(2);
 }
 
 // Color Presets Manager State (doc/7_UI)
@@ -241,12 +219,17 @@ let presetColors = [
 ];
 let editingPresetIndex = -1; // -1 for "Add New", >=0 for "Edit Existing"
 
+// Gallery Sidebar State
+let sidebarPatterns = [];
+let sidebarLastDoc = null;
+let sidebarLoadingMore = false;
+let sidebarHasMore = true;
+let sidebarActivePatternId = null;
 
 // DOM Elements
 const templateSelect = document.getElementById('template-select');
 const templateDesc = document.getElementById('template-desc');
 const metaThreads = document.getElementById('meta-threads');
-const metaDifficulty = document.getElementById('meta-difficulty');
 const threadListContainer = document.getElementById('thread-list');
 const colorPicker = document.getElementById('color-picker');
 const colorHex = document.getElementById('color-hex');
@@ -288,18 +271,12 @@ const guideText = document.getElementById('guide-text');
 const progressBar = document.getElementById('progress-bar');
 const progressPercentage = document.getElementById('progress-percentage');
 
-// Playback Buttons
-const btnFirst = document.getElementById('btn-first');
-const btnPrev = document.getElementById('btn-prev');
-const btnPlay = document.getElementById('btn-play');
-const btnNext = document.getElementById('btn-next');
-const btnLast = document.getElementById('btn-last');
+// Weave Button
+const btnWeave = document.getElementById('btn-weave');
 
 // Storage & Export Buttons
 const authArea = document.getElementById('auth-area');
 const btnSaveGallery = document.getElementById('btn-save-gallery');
-const btnSaveLocal = document.getElementById('btn-save-local');
-const btnLoadLocal = document.getElementById('btn-load-local');
 const btnShareUrl = document.getElementById('btn-share-url');
 const btnExportJson = document.getElementById('btn-export-json');
 const btnImportJsonTrigger = document.getElementById('btn-import-json-trigger');
@@ -315,6 +292,11 @@ const tabContents = document.querySelectorAll('.tab-content');
 const ctxDisk = diskCanvas.getContext('2d');
 const ctxBraid = braidCanvas.getContext('2d');
 const ctxChart = chartCanvas.getContext('2d');
+
+// Gallery Sidebar DOM Elements
+const sidebarPatternList = document.getElementById('sidebar-pattern-list');
+const sidebarLoadingEl = document.getElementById('sidebar-loading');
+const sidebarSentinel = document.getElementById('sidebar-sentinel');
 
 // --- Auth UI ---
 const GOOGLE_ICON_SVG = `<svg class="google-icon" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.81-4.59l-7.98-6.19A23.93 23.93 0 0 0 0 24c0 3.77.9 7.35 2.56 10.59l7.97-6zm"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
@@ -379,8 +361,11 @@ function init() {
 
   // Inject AdSense ads (IDs from .env via import.meta.env)
   initAdSense();
-  injectSidebarAd(document.querySelector('.control-panel'));
   injectPlaybackAd(document.querySelector('.workspace-center'));
+
+  // Gallery sidebar: load first page & setup infinite scroll
+  loadGalleryPage();
+  setupSidebarInfiniteScroll();
 }
 
 // i18n Translation Engine Changer
@@ -458,16 +443,6 @@ function updateTemplateDisplayMetadata() {
   templateDesc.textContent = currentLang === 'ko' ? activeTemplate.desc_ko : activeTemplate.desc_en;
   
   metaThreads.innerHTML = `<i class="fa-solid fa-braille"></i> ${activeTemplate.threads}${TRANSLATIONS[currentLang].metaThreads}`;
-  
-  let diffText = "";
-  if (activeTemplate.threads >= 12) {
-    diffText = TRANSLATIONS[currentLang].diffHard;
-  } else if (activeTemplate.threads >= 8) {
-    diffText = TRANSLATIONS[currentLang].diffMedium;
-  } else {
-    diffText = TRANSLATIONS[currentLang].diffEasy;
-  }
-  metaDifficulty.innerHTML = `<i class="fa-solid fa-gauge-simple-high"></i> ${TRANSLATIONS[currentLang].metaDifficulty}${diffText}`;
 }
 
 // Load selected template
@@ -476,10 +451,11 @@ function loadTemplate(tmpl, customColors = null) {
   disk = new KumihimoDisk(tmpl.threads);
   threadColors = customColors ? [...customColors] : [...tmpl.defaultColors];
   
-  // Adjust progress bar bounds
-  progressBar.max = MAX_STEPS;
   currentStep = 0;
-  progressBar.value = 0;
+  if (progressBar) {
+    progressBar.max = MAX_STEPS;
+    progressBar.value = 0;
+  }
   
   selectedThreadIndex = 0; // Default to first thread
   
@@ -502,7 +478,7 @@ function resetSimulationToStep(step) {
   disk.reset(threadColors);
   for (let i = 0; i < step; i++) {
     try {
-      disk.weaveRow();
+      disk.weaveRowFast();
     } catch (err) {
       console.error(`Error reconstructing state at step ${i + 1}:`, err);
       break;
@@ -555,8 +531,8 @@ function updateColorPickerUI() {
 
 function updatePlaybackUI() {
   if (stepCounter) stepCounter.textContent = `${TRANSLATIONS[currentLang].stepCounterPrefix} ${currentStep} / ${MAX_STEPS}`;
-  progressBar.value = currentStep;
-  progressPercentage.textContent = `${Math.round((currentStep / MAX_STEPS) * 100)}%`;
+  if (progressBar) progressBar.value = currentStep;
+  if (progressPercentage) progressPercentage.textContent = `${Math.round((currentStep / MAX_STEPS) * 100)}%`;
 }
 
 // --- Renderers ---
@@ -857,7 +833,7 @@ function drawBraid() {
   ctxBraid.scale(braidZoom, braidZoom);
   
   // Cylinder Geometric Constants
-  const radius = 33; // Cylinder radius (tightly scaled)
+  const radius = braidRadius; // Cylinder radius (dynamically scaled per thread count)
   const pitch = braidPitch; // Compact pitch spacing for tight weaving density (UX Upgrade)
   const nThreads = disk.nThreads;
   
@@ -914,7 +890,7 @@ function drawBraid() {
       const currZ = radius * Math.cos(adjustedCurrTheta);
       
       // Only keep segments that are visible on the front of the cylinder (Z > -10 for smooth curvature)
-      if (prevZ > -12 || currZ > -12) {
+      if (prevZ > -radius * CULLING_RATIO || currZ > -radius * CULLING_RATIO) {
         const avgZ = (prevZ + currZ) / 2;
         segments.push({
           threadId: i,
@@ -942,14 +918,15 @@ function drawBraid() {
     ctxBraid.lineTo(seg.tx, seg.ty);
     
     // Compute thread thickness — controlled by strandWidthRatio slider
-    const strandWidth = Math.max(5, Math.min(18, radius * strandWidthRatio));
+    const { strandWidthMin, strandWidthMax, baseRadius: mainBaseRadius } = BRAID_CONTEXTS.main;
+    const strandWidth = Math.max(strandWidthMin, Math.min(strandWidthMax, mainBaseRadius * strandWidthRatio));
     
     ctxBraid.lineWidth = strandWidth;
     ctxBraid.lineCap = 'round';
     
     // Calculate realistic lighting factor based on Z-depth (center is bright, sides are dark)
     // This removes the grey overlay box entirely and makes colors extremely glowing!
-    const lightingFactor = 0.52 + 0.48 * ((seg.avgZ + radius) / (2 * radius)); // range 0.52 to 1.0
+    const lightingFactor = LIGHTING_MIN + LIGHTING_RANGE * ((seg.avgZ + radius) / (2 * radius));
     const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
     
     ctxBraid.strokeStyle = shadedColor;
@@ -1362,33 +1339,6 @@ function setupEventListeners() {
     });
   }
 
-  // Settings: Speed
-  const settingsSpeed = document.getElementById('settings-speed');
-  if (settingsSpeed) {
-    settingsSpeed.addEventListener('change', (e) => {
-      playSpeed = parseInt(e.target.value);
-    });
-  }
-
-  // Settings: Max Steps
-  const settingsMaxSteps = document.getElementById('settings-max-steps');
-  if (settingsMaxSteps) {
-    settingsMaxSteps.addEventListener('change', (e) => {
-      let val = parseInt(e.target.value, 10);
-      if (isNaN(val) || val < 10) val = 10;
-      if (val > 1000) val = 1000;
-      e.target.value = val;
-      MAX_STEPS = val;
-      progressBar.max = MAX_STEPS;
-      if (currentStep > MAX_STEPS) {
-        currentStep = MAX_STEPS;
-        resetSimulationToStep(currentStep);
-      }
-      updatePlaybackUI();
-      renderAll();
-    });
-  }
-
   // i18n Language toggle clicks
   btnLangKo.addEventListener('click', () => setLanguage('ko'));
   btnLangEn.addEventListener('click', () => setLanguage('en'));
@@ -1466,50 +1416,25 @@ function setupEventListeners() {
 
   // Preset color buttons - 이벤트 리스너는 renderPresetColors() 함수에서 동적으로 추가됨
 
-  // 3. Playback Controls
-  btnPlay.addEventListener('click', togglePlay);
-  
-  btnNext.addEventListener('click', () => {
-    if (currentStep < MAX_STEPS) {
+  // 3. Weave Button — simulate all rows at once
+  if (btnWeave) {
+    btnWeave.addEventListener('click', () => {
+      btnWeave.disabled = true;
+      btnWeave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Weaving...';
       try {
-        disk.weaveRow();
-        currentStep = disk.rowIndex;
+        while (currentStep < MAX_STEPS) {
+          disk.weaveRowFast();
+          currentStep = disk.rowIndex;
+        }
         updatePlaybackUI();
         renderAll();
       } catch (err) {
         showToast(`${currentLang === 'ko' ? '오류' : 'Error'}: ${err.message}`);
       }
-    } else {
-      showToast(TRANSLATIONS[currentLang].toastStepComplete);
-    }
-  });
-
-  btnPrev.addEventListener('click', () => {
-    if (currentStep > 0) {
-      currentStep--;
-      resetSimulationToStep(currentStep);
-      renderAll();
-    }
-  });
-
-  btnFirst.addEventListener('click', () => {
-    currentStep = 0;
-    resetSimulationToStep(currentStep);
-    renderAll();
-  });
-
-  btnLast.addEventListener('click', () => {
-    currentStep = MAX_STEPS;
-    resetSimulationToStep(currentStep);
-    renderAll();
-  });
-
-  progressBar.addEventListener('input', (e) => {
-    const val = parseInt(e.target.value, 10);
-    currentStep = val;
-    resetSimulationToStep(currentStep);
-    renderAll();
-  });
+      btnWeave.disabled = false;
+      btnWeave.innerHTML = '<i class="fa-solid fa-arrows-spin"></i> Weave';
+    });
+  }
 
   // 4. Storage actions
 
@@ -1525,18 +1450,27 @@ function setupEventListeners() {
     btnSaveGallery.disabled = true;
 
     try {
-      const templateNameKo = activeTemplate.name_ko || activeTemplate.name_en;
-      const templateNameEn = activeTemplate.name_en || activeTemplate.name_ko;
+      const defaultName = currentLang === 'ko'
+        ? (activeTemplate.name_ko || activeTemplate.name_en)
+        : (activeTemplate.name_en || activeTemplate.name_ko);
+      const userInput = prompt(t.savePatternPrompt, defaultName);
+      if (userInput === null) {
+        btnSaveGallery.disabled = false;
+        return;
+      }
+      const patternName = userInput.trim() || defaultName;
 
       await addDoc(collection(db, 'patterns'), {
         templateId: activeTemplate.id,
         templateName: activeTemplate.name_en,
-        nameKo: templateNameKo,
-        nameEn: templateNameEn,
+        nameKo: patternName,
+        nameEn: patternName,
         nThreads: disk.nThreads,
         maxSteps: MAX_STEPS,
         colors: [...threadColors],
         ownerUid: currentUser.uid,
+        ownerName: currentUser.displayName || currentUser.email || 'Anonymous',
+        ownerPhoto: currentUser.photoURL || '',
         createdAt: serverTimestamp()
       });
 
@@ -1546,27 +1480,6 @@ function setupEventListeners() {
       showToast(t.toastSaveGalleryError);
     } finally {
       btnSaveGallery.disabled = false;
-    }
-  });
-
-  btnSaveLocal.addEventListener('click', () => {
-    const data = getExportData();
-    localStorage.setItem('palzzi-saved-profile', JSON.stringify(data));
-    showToast(TRANSLATIONS[currentLang].toastSaveLocal);
-  });
-
-  btnLoadLocal.addEventListener('click', () => {
-    const saved = localStorage.getItem('palzzi-saved-profile');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        loadExportData(data);
-        showToast(TRANSLATIONS[currentLang].toastLoadLocal);
-      } catch (err) {
-        showToast(currentLang === 'ko' ? "불러오기 실패: 데이터가 오염되었습니다." : "Failed to load: Corrupted profile data.");
-      }
-    } else {
-      showToast(TRANSLATIONS[currentLang].toastNoLocal);
     }
   });
 
@@ -1954,47 +1867,6 @@ function loadExportData(data) {
   }
 }
 
-// --- Playback Loop ---
-
-function togglePlay() {
-  if (isPlaying) {
-    clearInterval(playInterval);
-    isPlaying = false;
-    btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
-    showToast(TRANSLATIONS[currentLang].toastAutoplayPause);
-  } else {
-    if (currentStep >= MAX_STEPS) {
-      currentStep = 0;
-      resetSimulationToStep(0);
-    }
-    
-    isPlaying = true;
-    btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
-    showToast(TRANSLATIONS[currentLang].toastAutoplayStart);
-    
-    const intervalTime = parseInt(document.getElementById('settings-speed')?.value || '250', 10);
-    playInterval = setInterval(() => {
-      if (currentStep < MAX_STEPS) {
-        try {
-          disk.weaveRow();
-          currentStep = disk.rowIndex;
-          updatePlaybackUI();
-          renderAll();
-        } catch (err) {
-          clearInterval(playInterval);
-          isPlaying = false;
-          btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
-          showToast(`${TRANSLATIONS[currentLang].toastStopError}${err.message}`);
-        }
-      } else {
-        clearInterval(playInterval);
-        isPlaying = false;
-        btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
-        showToast(TRANSLATIONS[currentLang].toastStepComplete);
-      }
-    }, intervalTime);
-  }
-}
 
 // Check for parameters in the URL to restore sharing state
 function checkUrlParams() {
@@ -2027,3 +1899,207 @@ function checkUrlParams() {
 
 // Run Initial setup on page load
 window.addEventListener('DOMContentLoaded', init);
+
+// --- Gallery Sidebar: Cursor-based Pagination & Infinite Scroll ---\
+
+const SIDEBAR_PAGE_SIZE = 20;
+
+async function loadGalleryPage() {
+  if (sidebarLoadingMore || !sidebarHasMore) return;
+  sidebarLoadingMore = true;
+
+  if (sidebarLoadingEl) sidebarLoadingEl.classList.remove('hidden');
+
+  try {
+    let q;
+    if (sidebarLastDoc) {
+      q = query(collection(db, 'patterns'), orderBy('createdAt', 'desc'), limit(SIDEBAR_PAGE_SIZE), startAfter(sidebarLastDoc));
+    } else {
+      q = query(collection(db, 'patterns'), orderBy('createdAt', 'desc'), limit(SIDEBAR_PAGE_SIZE));
+    }
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      sidebarHasMore = false;
+    } else {
+      sidebarLastDoc = snapshot.docs[snapshot.docs.length - 1];
+
+      snapshot.forEach(docSnap => {
+        const pattern = { id: docSnap.id, ...docSnap.data() };
+        sidebarPatterns.push(pattern);
+        const card = renderSidebarCard(pattern);
+        sidebarPatternList.insertBefore(card, sidebarSentinel);
+      });
+
+      // If fewer results than page size, no more pages
+      if (snapshot.docs.length < SIDEBAR_PAGE_SIZE) {
+        sidebarHasMore = false;
+      }
+    }
+  } catch (err) {
+    console.error('Error loading gallery sidebar:', err);
+    sidebarHasMore = false;
+  }
+
+  sidebarLoadingMore = false;
+  if (sidebarLoadingEl) sidebarLoadingEl.classList.add('hidden');
+}
+
+function renderSidebarCard(pattern) {
+  const t = TRANSLATIONS[currentLang];
+  const card = document.createElement('div');
+  card.className = 'sidebar-pattern-card';
+  card.dataset.id = pattern.id;
+
+  const patternName = currentLang === 'ko'
+    ? (pattern.nameKo || pattern.templateName || t.sidebarUnknown)
+    : (pattern.nameEn || pattern.templateName || t.sidebarUnknown);
+
+  const threadsLabel = pattern.nThreads ? `${pattern.nThreads}${t.sidebarThreadsUnit}` : '-';
+
+  card.innerHTML = `
+    <div class="sidebar-card-preview"><canvas width="56" height="56"></canvas></div>
+    <div class="sidebar-card-info">
+      <div class="sidebar-card-name">${patternName}</div>
+      <div class="sidebar-card-meta">${threadsLabel}</div>
+      <div class="sidebar-card-colors">${(pattern.colors || []).slice(0, 6).map(c => `<div class="sidebar-card-dot" style="background-color:${c}"></div>`).join('')}</div>
+    </div>
+  `;
+
+  const canvas = card.querySelector('canvas');
+  drawSidebarBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120);
+
+  card.addEventListener('click', () => {
+    sidebarActivePatternId = pattern.id;
+    document.querySelectorAll('.sidebar-pattern-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    loadPatternToSimulator(pattern);
+  });
+
+  return card;
+}
+
+function drawSidebarBraidPreview(canvas, colors, nThreads, maxSteps) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#f8f9fa';
+  ctx.fillRect(0, 0, w, h);
+
+  if (colors.length === 0 || nThreads === 0) return;
+
+  const threadColors = [...colors];
+  while (threadColors.length < nThreads) threadColors.push('#ccc');
+
+  const previewDisk = new KumihimoDisk(nThreads);
+  previewDisk.init(threadColors);
+
+  const sBaseRadius = BRAID_CONTEXTS.sidebar.baseRadius;
+  const sRadius = calcBraidRadius(nThreads, sBaseRadius);
+  const sPitch = calcBraidPitch(nThreads, sRadius);
+  const maxVisibleRows = Math.floor((h - 4) / sPitch);
+
+  // Simulate extra rows beyond the canvas so the braid overflows naturally (canvas clips the rest)
+  const simSteps = Math.min(maxSteps, Math.floor(maxVisibleRows * 2));
+  for (let s = 0; s < simSteps; s++) previewDisk.weaveRowFast();
+
+  if (previewDisk.productColors.length <= 1) return;
+
+  const sStartY = 8;
+  const strandWidth = Math.max(BRAID_CONTEXTS.sidebar.strandWidthMin, Math.min(BRAID_CONTEXTS.sidebar.strandWidthMax, sBaseRadius * BRAID_CONTEXTS.sidebar.strandWidthRatio));
+
+  ctx.save();
+  ctx.translate(w / 2, 0);
+
+  const endRowIdx = previewDisk.productColors.length;
+
+  const segments = [];
+  for (let r = 1; r < endRowIdx; r++) {
+    const prevRow = previewDisk.productColors[r - 1];
+    const currRow = previewDisk.productColors[r];
+    const prevY = sStartY + (r - 1) * sPitch;
+    const currY = sStartY + r * sPitch;
+
+    for (let i = 0; i < previewDisk.nThreads; i++) {
+      const prevThread = prevRow[i];
+      const currThread = currRow[i];
+      if (!prevThread || !currThread) continue;
+
+      const prevTheta = (prevThread.slot * 2 * Math.PI) / previewDisk.slotsCount - Math.PI / 2;
+      const currTheta = (currThread.slot * 2 * Math.PI) / previewDisk.slotsCount - Math.PI / 2;
+
+      let diff = currTheta - prevTheta;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      const adjustedCurrTheta = prevTheta + diff;
+
+      const prevX = sRadius * Math.sin(prevTheta);
+      const prevZ = sRadius * Math.cos(prevTheta);
+      const currX = sRadius * Math.sin(adjustedCurrTheta);
+      const currZ = sRadius * Math.cos(adjustedCurrTheta);
+
+      if (prevZ > -sRadius * CULLING_RATIO || currZ > -sRadius * CULLING_RATIO) {
+        const avgZ = (prevZ + currZ) / 2;
+        segments.push({ color: currThread.color, fx: prevX, fy: prevY, tx: currX, ty: currY, avgZ });
+      }
+    }
+  }
+
+  segments.sort((a, b) => a.avgZ - b.avgZ);
+
+  segments.forEach(seg => {
+    ctx.beginPath();
+    ctx.moveTo(seg.fx, seg.fy);
+    ctx.lineTo(seg.tx, seg.ty);
+    const lightingFactor = LIGHTING_MIN + LIGHTING_RANGE * ((seg.avgZ + sRadius) / (2 * sRadius));
+    ctx.strokeStyle = adjustColorBrightness(seg.color, lightingFactor);
+    ctx.lineWidth = strandWidth;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function loadPatternToSimulator(pattern) {
+  let tmpl = KUMIHIMO_TEMPLATES.find(t => t.id === pattern.templateId);
+  if (!tmpl) {
+    tmpl = KUMIHIMO_TEMPLATES.find(t => t.threads === pattern.nThreads);
+  }
+  if (!tmpl) {
+    tmpl = {
+      id: `custom-${pattern.nThreads}`,
+      name_ko: `${pattern.nThreads}가닥 커스텀`,
+      name_en: `${pattern.nThreads}-Strand Custom`,
+      threads: pattern.nThreads,
+      desc_ko: '사용자 지정 패턴',
+      desc_en: 'User custom pattern',
+      defaultColors: [...(pattern.colors || [])]
+    };
+    if (!KUMIHIMO_TEMPLATES.some(t => t.id === tmpl.id)) {
+      KUMIHIMO_TEMPLATES.push(tmpl);
+      setupTemplateDropdown();
+    }
+  }
+
+  templateSelect.value = tmpl.id;
+  loadTemplate(tmpl, pattern.colors);
+  renderAll();
+  showToast(currentLang === 'ko' ? '패턴을 불러왔습니다!' : 'Pattern loaded!');
+}
+
+function setupSidebarInfiniteScroll() {
+  if (!sidebarSentinel) return;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && sidebarHasMore && !sidebarLoadingMore) {
+        loadGalleryPage();
+      }
+    });
+  }, { root: sidebarPatternList, threshold: 0.1 });
+
+  observer.observe(sidebarSentinel);
+}

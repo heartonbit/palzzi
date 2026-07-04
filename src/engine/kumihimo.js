@@ -1,3 +1,5 @@
+import { RADIUS_EXPONENT, PITCH_RATIO, PITCH_EXPONENT } from '../braid-config.js';
+
 /**
  * Kumihimo Simulation Engine
  * Handles the state of the circular disk and braiding algorithm.
@@ -32,6 +34,11 @@ export class KumihimoDisk {
     this.currentPos = 0;
     this.rowIndex = 0;
 
+    // Cycle optimization cache
+    this.cycleLength = 0; // 0 = not yet detected
+    this.stateSnapshots = [];
+    this.initialStateIds = null;
+
     const nPairs = this.nThreads / 2;
     const distance = this.slotsCount / nPairs;
 
@@ -41,7 +48,10 @@ export class KumihimoDisk {
       this.state[idx1] = { id: i * 2, color: threadColors[i * 2] };
       this.state[idx2] = { id: i * 2 + 1, color: threadColors[i * 2 + 1] };
     }
-    
+
+    // Store initial state for cycle detection (compare thread IDs per slot)
+    this.initialStateIds = this.state.map(s => s ? s.id : null);
+
     // Save initial ordered colors with their slot positions
     this.productColors.push(this.getActiveColors());
   }
@@ -131,6 +141,22 @@ export class KumihimoDisk {
     const rowResult = [...tops, ...bottoms];
     this.product.push(rowResult);
     this.productColors.push(this.getActiveColors());
+
+    // Cache state snapshot (only until cycle is detected)
+    if (this.cycleLength === 0) {
+      this.stateSnapshots.push(this.state.map(s => s ? { id: s.id, color: s.color } : null));
+
+      // Check if state has returned to initial (cycle detected)
+      const currentIds = this.state.map(s => s ? s.id : null);
+      let match = true;
+      for (let i = 0; i < this.slotsCount; i++) {
+        if (currentIds[i] !== this.initialStateIds[i]) { match = false; break; }
+      }
+      if (match) {
+        this.cycleLength = this.rowIndex + 1; // +1 because rowIndex increments below
+      }
+    }
+
     this.rowIndex++;
     
     // Save currentPos for disk rendering (the last position reached in this row)
@@ -140,10 +166,66 @@ export class KumihimoDisk {
   }
 
   /**
+   * Fast weave: simulates rows normally until a cycle is detected (state returns to initial),
+   * then deep-copies rows from the cached cycle for subsequent rows.
+   */
+  weaveRowFast() {
+    // No cycle detected yet, or still within first cycle — do real simulation
+    if (this.cycleLength === 0 || this.rowIndex < this.cycleLength) {
+      return this.weaveRow();
+    }
+
+    // Past first cycle — copy from the cached cycle
+    const cycleIdx = this.rowIndex % this.cycleLength;
+    const sourceRow = this.product[cycleIdx];
+
+    this.product.push([...sourceRow]);
+
+    // productColors[0] = initial state, productColors[1] = after row 0, etc.
+    const sourceColors = this.productColors[cycleIdx + 1];
+    this.productColors.push(sourceColors.map(c => ({ id: c.id, color: c.color, slot: c.slot })));
+
+    // Restore disk state from snapshot (keeps disk view rotating)
+    const snapshot = this.stateSnapshots[cycleIdx];
+    this.state = snapshot.map(s => s ? { id: s.id, color: s.color } : null);
+
+    this.rowIndex++;
+    this.currentPos = (this.slotsCount - this.rowIndex) % this.slotsCount;
+
+    return [...sourceRow];
+  }
+
+  /**
    * Resets the simulation to the initial state while maintaining the thread colors.
-   * @param {string[]} threadColors 
+   * @param {string[]} threadColors
    */
   reset(threadColors) {
     this.init(threadColors);
   }
+}
+
+
+/**
+ * Calculate the optimal cylinder radius based on thread count and base radius.
+ * More threads require a larger radius to accommodate the increased strand density.
+ *
+ * @param {number} nThreads   - Number of strands in the braid
+ * @param {number} baseRadius - Base cylinder radius for 8 threads (rendering scale)
+ * @returns {number} Cylinder radius in pixels
+ */
+export function calcBraidRadius(nThreads, baseRadius) {
+  return baseRadius * Math.pow(nThreads / 8, RADIUS_EXPONENT);
+}
+
+/**
+ * Calculate the optimal braid pitch (vertical row spacing) based on thread count
+ * and cylinder radius. More threads require larger pitch to prevent overlap
+ * and unnatural step artifacts in the cylinder projection.
+ *
+ * @param {number} nThreads - Number of strands in the braid
+ * @param {number} radius   - Cylinder radius in pixels (rendering scale)
+ * @returns {number} Pitch value (vertical pixels per row)
+ */
+export function calcBraidPitch(nThreads, radius) {
+  return radius * PITCH_RATIO * Math.pow(nThreads / 8, PITCH_EXPONENT);
 }
