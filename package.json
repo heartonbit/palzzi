@@ -1,6 +1,6 @@
 {
   "name": "palzzi-kumihimo-simulator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A 2D interactive Kumihimo braiding simulator and visualizer",
   "main": "src/main.js",
   "type": "module",

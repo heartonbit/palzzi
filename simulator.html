@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico">
   <title data-i18n="title">Palzzi (팔찌) - 쿠미히모 2D 시뮬레이터</title>
   <!-- Google Fonts & Font Awesome Icons -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
@@ -16,23 +17,27 @@
     <!-- Top Header Bar -->
     <header class="top-bar">
       <div class="logo-group">
-        <div class="logo">
-          <i class="fa-solid fa-circle-nodes"></i>
-          <h1><span class="logo-text" data-i18n="logoTitle">Palzzi</span></h1>
-        </div>
+        <a href="/" class="logo-link">
+          <div class="logo">
+            <img src="/logo.png" alt="Palzzi" class="logo-img">
+            <h1><span class="logo-text" data-i18n="logoTitle">Palzzi</span></h1>
+          </div>
+        </a>
         <!-- Language Selector Toggle -->
-        <div class="lang-selector">
-          <button id="btn-lang-ko" class="lang-btn active">KO</button>
-          <button id="btn-lang-en" class="lang-btn">EN</button>
+        <div class="lang-selector" id="lang-selector">
+          <button id="btn-lang-toggle" class="btn-lang-globe" title="Language">
+            <i class="fa-solid fa-globe"></i>
+          </button>
+          <div class="lang-popup hidden" id="lang-popup">
+            <button id="btn-lang-ko" class="lang-option active">한국어</button>
+            <button id="btn-lang-en" class="lang-option">English</button>
+          </div>
         </div>
       </div>
       <div class="header-actions">
         <div id="auth-area" class="auth-area">
           <!-- Auth UI dynamically populated by main.js -->
         </div>
-        <a href="/" class="btn btn-secondary" id="btn-gallery" title="패턴 갤러리 / Pattern Gallery">
-          <i class="fa-solid fa-images"></i> <span data-i18n="galleryLink">갤러리</span>
-        </a>
         <div class="dropdown">
           <!--
           <button id="btn-export-dropdown" class="btn btn-primary" title="내보내기 / Export">
@@ -136,23 +141,22 @@
 
       <!-- Right/Bottom Dual View Panel -->
       <aside class="dual-viewer">
-        <!-- Tab Headers -->
-        <div class="view-tabs">
-          <button class="view-tab active" data-tab="finished"><i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="tabVirtualBraid">3D 가상 완성본 2D 뷰</span></button>
-          <button class="view-tab" data-tab="chart"><i class="fa-solid fa-table"></i> <span data-i18n="tabPatternChart">기호 도안 차트 (Pattern Chart)</span></button>
-        </div>
-
-        <!-- Tab Contents -->
         <div class="view-contents">
-          <!-- Finished Virtual view -->
+          <!-- 3D Braid View -->
           <div id="tab-finished" class="tab-content active">
             <div class="canvas-wrapper">
               <canvas id="braid-canvas" width="320" height="500"></canvas>
+              <div class="zoom-controls">
+                <button id="btn-show-chart" class="zoom-btn view-switch-btn" data-i18n="tabPatternChart" title="2D 도안 보기">2D</button>
+                <button id="btn-zoom-in" class="zoom-btn" title="줌인">+</button>
+                <button id="btn-zoom-out" class="zoom-btn" title="줌아웃">−</button>
+              </div>
             </div>
           </div>
 
-          <!-- Pattern chart view -->
+          <!-- 2D Pattern Chart View -->
           <div id="tab-chart" class="tab-content">
+            <button id="btn-back-to-3d" class="btn-back-to-3d" data-i18n="backTo3D">← 3D</button>
             <div class="canvas-wrapper chart-scrollable">
               <canvas id="chart-canvas" width="320" height="500"></canvas>
             </div>

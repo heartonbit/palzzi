@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   getDocs,
+  getDoc,
   deleteDoc,
   doc
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
@@ -24,7 +25,7 @@ const GALLERY_TRANSLATIONS = {
     logoTitle: "Palzzi",
     backToSimulator: "시뮬레이터로",
     galleryHeading: "쿠미히모 패턴 갤러리",
-    gallerySubtitle: "Firebase에 저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.",
+    gallerySubtitle: "저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.",
     loadingPatterns: "패턴을 불러오는 중...",
     noPatterns: "아직 저장된 패턴이 없습니다.",
     createFirst: "첫 패턴 만들기",
@@ -53,7 +54,7 @@ const GALLERY_TRANSLATIONS = {
     logoTitle: "Palzzi",
     backToSimulator: "To Simulator",
     galleryHeading: "Kumihimo Pattern Gallery",
-    gallerySubtitle: "Browse Kumihimo patterns saved to Firebase. Click a card to see details.",
+    gallerySubtitle: "Browse Kumihimo patterns. Click a card to see details.",
     loadingPatterns: "Loading patterns...",
     noPatterns: "No patterns saved yet.",
     createFirst: "Create First Pattern",
@@ -83,9 +84,12 @@ let currentLang = 'en';
 let patterns = [];
 let selectedPattern = null;
 let currentUser = null;
+let userIsAdmin = false;
 
 // --- DOM Elements ---
 const authArea = document.getElementById('auth-area');
+const btnLangToggle = document.getElementById('btn-lang-toggle');
+const langPopup = document.getElementById('lang-popup');
 const btnLangKo = document.getElementById('btn-lang-ko');
 const btnLangEn = document.getElementById('btn-lang-en');
 const galleryLoading = document.getElementById('gallery-loading');
@@ -140,8 +144,22 @@ function init() {
   setLanguage('en');
 
   // Auth state listener — update UI and re-render on auth change
-  onAuthChange((user) => {
+  onAuthChange(async (user) => {
     updateAuthUI(user);
+    const btnAdminLink = document.getElementById('btn-admin-link');
+    if (user) {
+      try {
+        const adminSnap = await getDoc(doc(db, 'admins', user.uid));
+        userIsAdmin = adminSnap.exists();
+      } catch {
+        userIsAdmin = false;
+      }
+    } else {
+      userIsAdmin = false;
+    }
+    if (btnAdminLink) {
+      btnAdminLink.classList.toggle('hidden', !userIsAdmin);
+    }
     fetchPatterns();
   });
 
@@ -161,6 +179,7 @@ function setLanguage(lang) {
     btnLangEn.classList.add('active');
     btnLangKo.classList.remove('active');
   }
+  langPopup.classList.add('hidden');
 
   // Translate all elements with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -486,6 +505,14 @@ function showDetail(pattern) {
     `;
     detailColorList.appendChild(swatch);
   });
+
+  // Show delete button only for owner or admin
+  const isOwner = currentUser && pattern.ownerUid === currentUser.uid;
+  if (isOwner || userIsAdmin) {
+    btnDeletePattern.classList.remove('hidden');
+  } else {
+    btnDeletePattern.classList.add('hidden');
+  }
 }
 
 function hideDetail() {
@@ -500,8 +527,17 @@ function hideDetail() {
 // --- Event Listeners ---
 function setupEventListeners() {
   // Language toggle
+  btnLangToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langPopup.classList.toggle('hidden');
+  });
   btnLangKo.addEventListener('click', () => setLanguage('ko'));
   btnLangEn.addEventListener('click', () => setLanguage('en'));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#lang-selector')) {
+      langPopup.classList.add('hidden');
+    }
+  });
 
   // Close detail panel
   btnCloseDetail.addEventListener('click', hideDetail);
@@ -516,6 +552,9 @@ function setupEventListeners() {
     url.searchParams.set('tmpl', selectedPattern.templateId || 'kumihimo-8-candy');
     url.searchParams.set('colors', hexArray.join(','));
     url.searchParams.set('step', selectedPattern.maxSteps || '120');
+    if (selectedPattern.patternKey) {
+      url.searchParams.set('key', selectedPattern.patternKey);
+    }
 
     window.location.href = url.toString();
   });

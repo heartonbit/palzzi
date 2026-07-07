@@ -204,11 +204,19 @@
   <div class="global-controls">
     <div class="control-group">
       <label>Canvas Height</label>
-      <input type="number" id="canvas-height" min="100" max="300" step="10" value="180">
+      <input type="number" id="canvas-height" min="100" max="500" step="10" value="300">
     </div>
     <div class="control-group">
       <label>Strand Width (Fixed)</label>
       <input type="number" id="global-strand-width" min="1" max="15" step="0.5" value="6">
+    </div>
+    <div class="control-group">
+      <label>Effects</label>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="fx-depth-width"> Depth Width</label>
+        <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="fx-shadow"> Front Shadow</label>
+        <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="fx-contrast"> Contrast</label>
+      </div>
     </div>
     <button id="btn-copy-from-prev">Copy from Previous</button>
     <button id="btn-copy-all">Copy First to All</button>
@@ -243,8 +251,11 @@
       lightingRange: 0.48,
     };
 
-    let canvasHeight = 180;
-    let globalStrandWidth = 6.0; 
+    let canvasHeight = 300;
+    let globalStrandWidth = 6.0;
+    let fxDepthWidth = false;
+    let fxShadow = false;
+    let fxContrast = false;
     let cardStates = {};
 
     function initCardStates() {
@@ -283,7 +294,7 @@
     }
 
     function calculatePitch(nThreads, radius, params) {
-      return radius * params.pitchRatio * Math.pow(nThreads / 8, params.pitchExponent);
+      return 8;
     }
 
     // Drawing Braid
@@ -312,30 +323,12 @@
       if (disk.productColors.length <= 1) return;
 
       const startY = 16;
-      const hangerY = 15;
-      const hangerR = Math.max(5, radius * 0.4);
-      const knotW = Math.max(2, radius * 0.25);
-
-      ctx.save();
-      ctx.translate(width / 2, 0);
-
-      // Draw hanger
-      ctx.beginPath();
-      ctx.arc(0, hangerY, hangerR, 0, 2 * Math.PI);
-      ctx.fillStyle = '#8a7e72';
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(-knotW, 0);
-      ctx.lineTo(-knotW, hangerY);
-      ctx.moveTo(knotW, 0);
-      ctx.lineTo(knotW, hangerY);
-      ctx.strokeStyle = '#a69c91';
-      ctx.lineWidth = knotW;
-      ctx.stroke();
 
       const maxVisibleRows = Math.floor((height - 40) / pitch);
       const endRowIdx = Math.min(disk.productColors.length, maxVisibleRows);
+
+      ctx.save();
+      ctx.translate(width / 2, 0);
 
       const segments = [];
       for (let r = 1; r < endRowIdx; r++) {
@@ -381,19 +374,36 @@
       segments.sort((a, b) => a.avgZ - b.avgZ);
 
       segments.forEach(seg => {
+        const zNorm = (seg.avgZ + radius) / (2 * radius);
+
+        let lightingFactor = params.lightingMin + params.lightingRange * zNorm;
+        if (fxContrast) {
+          lightingFactor = 0.3 + 0.9 * zNorm;
+        }
+        const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
+
+        let lw = globalStrandWidth;
+        if (fxDepthWidth) {
+          lw = globalStrandWidth * (0.5 + 0.8 * zNorm);
+        }
+
         ctx.beginPath();
         ctx.moveTo(seg.fx, seg.fy);
         ctx.lineTo(seg.tx, seg.ty);
-
-        const lightingFactor = params.lightingMin + params.lightingRange * ((seg.avgZ + radius) / (2 * radius));
-        const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
-
-        ctx.lineWidth = globalStrandWidth; 
+        ctx.lineWidth = lw;
         ctx.lineCap = 'round';
         ctx.strokeStyle = shadedColor;
-        ctx.shadowColor = 'rgba(0,0,0,0.18)';
-        ctx.shadowBlur = 2.5;
-        ctx.shadowOffsetY = 1;
+        if (fxShadow) {
+          const sBlur = 2 + 5 * zNorm;
+          const sOffY = 1 + 3 * zNorm;
+          ctx.shadowColor = `rgba(0,0,0,${0.1 + 0.35 * zNorm})`;
+          ctx.shadowBlur = sBlur;
+          ctx.shadowOffsetY = sOffY;
+        } else {
+          ctx.shadowColor = 'rgba(0,0,0,0.18)';
+          ctx.shadowBlur = 2.5;
+          ctx.shadowOffsetY = 1;
+        }
         ctx.stroke();
       });
 
@@ -582,6 +592,16 @@
       globalStrandWidth = parseFloat(e.target.value) || 6;
       TEST_CONFIGS.forEach(n => renderCard(n));
     });
+
+    function bindFxCheckbox(id, setter) {
+      document.getElementById(id).addEventListener('change', (e) => {
+        setter(e.target.checked);
+        TEST_CONFIGS.forEach(n => renderCard(n));
+      });
+    }
+    bindFxCheckbox('fx-depth-width', v => fxDepthWidth = v);
+    bindFxCheckbox('fx-shadow', v => fxShadow = v);
+    bindFxCheckbox('fx-contrast', v => fxContrast = v);
 
     btnCopyFromPrev.addEventListener('click', () => {
       for (let i = 1; i < TEST_CONFIGS.length; i++) {

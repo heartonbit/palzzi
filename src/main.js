@@ -40,8 +40,9 @@ const TRANSLATIONS = {
     copyUrlBtn: "URL 복사",
     stepLabel: "PROGRESS:",
     stepCounterPrefix: "스텝",
-    tabVirtualBraid: "3D 가상 완성본 2D 뷰",
-    tabPatternChart: "기호 도안 차트 (Pattern Chart)",
+    tabVirtualBraid: "3D",
+    tabPatternChart: "2D",
+    backTo3D: "← 3D",
     tabVirtualDesc: "현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.",
     tabChartDesc: "실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)",
     zoomLabel: "화면 배율:",
@@ -118,8 +119,9 @@ const TRANSLATIONS = {
     copyUrlBtn: "Copy URL",
     stepLabel: "PROGRESS:",
     stepCounterPrefix: "Step",
-    tabVirtualBraid: "3D Virtual Braid View",
-    tabPatternChart: "Pattern Chart View",
+    tabVirtualBraid: "3D",
+    tabPatternChart: "2D",
+    backTo3D: "← 3D",
     tabVirtualDesc: "Displays the spiral twists of the braid up to the current step in a 2D cylindrical projection.",
     tabChartDesc: "Visualizes thread transposition history in a pattern grid. (X-axis: thread, Y-axis: step)",
     zoomLabel: "View Zoom:",
@@ -185,6 +187,17 @@ let disk = new KumihimoDisk(8);
 let activeTemplate = KUMIHIMO_TEMPLATES[2]; // Default: 8-Strand Candy Cane
 let threadColors = [...activeTemplate.defaultColors];
 let currentStep = 0;
+let urlPatternLoaded = false;
+
+function computePatternKey(templateId, colors) {
+  const str = templateId + '|' + colors.map(c => c.toLowerCase()).join(',');
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
 let braidZoom = 0.70; // Braid viewer scale level. Default is zoom out 70% (UX upgrade)
 let braidRadius = BRAID_CONTEXTS.main.baseRadius; // Cylinder radius (dynamically adjusted per thread count)
@@ -247,6 +260,8 @@ const popupSaveBtn = document.getElementById('popup-save-btn');
 const popupCloseBtn = document.getElementById('popup-close');
 
 // i18n Selector Buttons
+const btnLangToggle = document.getElementById('btn-lang-toggle');
+const langPopup = document.getElementById('lang-popup');
 const btnLangKo = document.getElementById('btn-lang-ko');
 const btnLangEn = document.getElementById('btn-lang-en');
 
@@ -284,8 +299,7 @@ const inputImportJson = document.getElementById('input-import-json');
 const btnExportPngChart = document.getElementById('btn-export-png-chart');
 const btnExportPngBraid = document.getElementById('btn-export-png-braid');
 
-// Tabs
-const tabButtons = document.querySelectorAll('.view-tab');
+// View switching
 const tabContents = document.querySelectorAll('.tab-content');
 
 // Canvas Contexts
@@ -353,8 +367,16 @@ function init() {
   setupTemplateDropdown();
   loadTemplate(activeTemplate);
   setupEventListeners();
-  checkUrlParams();
-  
+  const urlHadStep = checkUrlParams();
+
+  if (!urlHadStep) {
+    while (currentStep < MAX_STEPS) {
+      disk.weaveRowFast();
+      currentStep = disk.rowIndex;
+    }
+    updatePlaybackUI();
+  }
+
   // Render initially
   renderPresetColors();
   renderAll();
@@ -383,6 +405,7 @@ function setLanguage(lang) {
     btnLangEn.classList.add('active');
     btnLangKo.classList.remove('active');
   }
+  langPopup.classList.add('hidden');
 
   // Translate all tags carrying data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -807,8 +830,14 @@ function adjustColorBrightness(hex, factor) {
  * Draw Virtual Finished Braided Cord preview with 3D Helix Projection (doc/6_KumihimoVisualization)
  */
 function drawBraid() {
+  const wrapper = braidCanvas.parentElement;
+  const fillHeight = wrapper ? wrapper.clientHeight - 20 : 500;
+  if (braidCanvas.height !== fillHeight) {
+    braidCanvas.height = fillHeight;
+  }
+
   ctxBraid.clearRect(0, 0, braidCanvas.width, braidCanvas.height);
-  
+
   const width = braidCanvas.width;
   const height = braidCanvas.height;
   const cx = width / 2;
@@ -817,14 +846,7 @@ function drawBraid() {
   ctxBraid.fillStyle = '#f8f9fa';
   ctxBraid.fillRect(0, 0, width, height);
 
-  // If there's no braided history, guide the user (rendered before scale for crisp text)
-  if (disk.productColors.length <= 1) {
-    ctxBraid.fillStyle = '#86868b';
-    ctxBraid.font = '13px sans-serif';
-    ctxBraid.textAlign = 'center';
-    ctxBraid.fillText(TRANSLATIONS[currentLang].dragHint, cx, height / 2);
-    return;
-  }
+  if (disk.productColors.length <= 1) return;
 
   // --- Start 3D Scaled Vector Drawing ---
   ctxBraid.save();
@@ -854,7 +876,7 @@ function drawBraid() {
   
   const maxVisibleRows = Math.floor(((height / braidZoom) - 80) / pitch);
   const totalRows = disk.productColors.length;
-  const endRowIdx = Math.min(totalRows, maxVisibleRows);
+  const endRowIdx = Math.min(totalRows, Math.max(1, maxVisibleRows));
   
   // Collect all segments across all active rows
   const segments = [];
@@ -892,6 +914,9 @@ function drawBraid() {
       // Only keep segments that are visible on the front of the cylinder (Z > -10 for smooth curvature)
       if (prevZ > -radius * CULLING_RATIO || currZ > -radius * CULLING_RATIO) {
         const avgZ = (prevZ + currZ) / 2;
+        // Use max Z (most front-facing point) for depth sorting to handle crossings correctly
+        // This ensures threads at the front are drawn last and appear on top
+        const maxZ = Math.max(prevZ, currZ);
         segments.push({
           threadId: i,
           color: currThread.color,
@@ -901,14 +926,16 @@ function drawBraid() {
           ty: currY,
           fz: prevZ,
           tz: currZ,
-          avgZ: avgZ
+          avgZ: avgZ,
+          maxZ: maxZ
         });
       }
     }
   }
-  
-  // Depth sort: back threads first (smaller avgZ), front threads last (larger avgZ)
-  segments.sort((a, b) => a.avgZ - b.avgZ);
+
+  // Depth sort: back threads first (smaller maxZ), front threads last (larger maxZ)
+  // Using maxZ instead of avgZ ensures threads at the front-center are drawn on top
+  segments.sort((a, b) => a.maxZ - b.maxZ);
   
   // Render sorted segments to build a perfect overlapping cylinder braid with WAVY natural edges
   segments.forEach(seg => {
@@ -1309,12 +1336,33 @@ function setupEventListeners() {
   // Settings: Braid Zoom
   const settingsZoom = document.getElementById('settings-braid-zoom');
   const settingsZoomVal = document.getElementById('settings-braid-zoom-val');
+
+  function applyBraidZoom(newZoom) {
+    braidZoom = Math.max(0.4, Math.min(1.5, newZoom));
+    if (settingsZoom) settingsZoom.value = braidZoom;
+    if (settingsZoomVal) settingsZoomVal.textContent = `${Math.round(braidZoom * 100)}%`;
+    renderAll();
+  }
+
   if (settingsZoom) {
     settingsZoom.addEventListener('input', (e) => {
-      braidZoom = parseFloat(e.target.value);
-      if (settingsZoomVal) settingsZoomVal.textContent = `${Math.round(braidZoom * 100)}%`;
-      renderAll();
+      applyBraidZoom(parseFloat(e.target.value));
     });
+  }
+
+  // Zoom buttons
+  const btnZoomIn = document.getElementById('btn-zoom-in');
+  const btnZoomOut = document.getElementById('btn-zoom-out');
+  if (btnZoomIn) btnZoomIn.addEventListener('click', () => applyBraidZoom(braidZoom + 0.1));
+  if (btnZoomOut) btnZoomOut.addEventListener('click', () => applyBraidZoom(braidZoom - 0.1));
+
+  // Mouse wheel zoom on braid canvas
+  if (braidCanvas) {
+    braidCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      applyBraidZoom(braidZoom + delta);
+    }, { passive: false });
   }
 
   // Settings: Pitch
@@ -1340,8 +1388,17 @@ function setupEventListeners() {
   }
 
   // i18n Language toggle clicks
+  btnLangToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langPopup.classList.toggle('hidden');
+  });
   btnLangKo.addEventListener('click', () => setLanguage('ko'));
   btnLangEn.addEventListener('click', () => setLanguage('en'));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#lang-selector')) {
+      langPopup.classList.add('hidden');
+    }
+  });
 
   // Preset Manager Modal Control (doc/7_UI)
   if (btnManagePresets) {
@@ -1462,6 +1519,7 @@ function setupEventListeners() {
 
       await addDoc(collection(db, 'patterns'), {
         templateId: activeTemplate.id,
+        patternKey: computePatternKey(activeTemplate.id, threadColors),
         templateName: activeTemplate.name_en,
         nameKo: patternName,
         nameEn: patternName,
@@ -1485,7 +1543,8 @@ function setupEventListeners() {
 
   btnShareUrl.addEventListener('click', () => {
     const hexArray = threadColors.map(c => c.replace('#', ''));
-    const shareUrl = `${window.location.origin}${window.location.pathname}?tmpl=${activeTemplate.id}&colors=${hexArray.join(',')}&step=${currentStep}`;
+    const patternKey = computePatternKey(activeTemplate.id, threadColors);
+    const shareUrl = `${window.location.origin}${window.location.pathname}?tmpl=${activeTemplate.id}&colors=${hexArray.join(',')}&step=${currentStep}&key=${patternKey}`;
     
     navigator.clipboard.writeText(shareUrl).then(() => {
       showToast(TRANSLATIONS[currentLang].toastShareUrl);
@@ -1558,18 +1617,18 @@ function setupEventListeners() {
     });
   }, { passive: false });
 
-  // 6. View Tabs Switching
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabButtons.forEach(b => b.classList.remove('active'));
-      tabContents.forEach(c => c.classList.remove('active'));
-      
-      btn.classList.add('active');
-      const targetId = `tab-${btn.dataset.tab}`;
-      document.getElementById(targetId).classList.add('active');
-      renderAll();
-    });
-  });
+  // 6. View Switching (3D ↔ 2D)
+  const btnShowChart = document.getElementById('btn-show-chart');
+  const btnBackTo3d = document.getElementById('btn-back-to-3d');
+
+  function switchView(targetTab) {
+    tabContents.forEach(c => c.classList.remove('active'));
+    document.getElementById(targetTab).classList.add('active');
+    renderAll();
+  }
+
+  if (btnShowChart) btnShowChart.addEventListener('click', () => switchView('tab-chart'));
+  if (btnBackTo3d) btnBackTo3d.addEventListener('click', () => switchView('tab-finished'));
 }
 
 function onDiskClick(e) {
@@ -1755,6 +1814,7 @@ async function saveUserColorsToFirestore() {
     const userDocRef = doc(db, 'userColors', currentUser.uid);
     await setDoc(userDocRef, {
       templateId: activeTemplate.id,
+      patternKey: computePatternKey(activeTemplate.id, threadColors),
       colors: [...threadColors],
       updatedAt: serverTimestamp()
     }, { merge: true });
@@ -1764,13 +1824,14 @@ async function saveUserColorsToFirestore() {
 }
 
 async function loadUserColorsFromFirestore() {
-  if (!currentUser) return;
+  if (!currentUser || urlPatternLoaded) return;
   try {
     const userDocRef = doc(db, 'userColors', currentUser.uid);
     const userDoc = await getDoc(userDocRef);
     if (userDoc.exists()) {
       const data = userDoc.data();
-      // Only load colors if the template matches
+      const currentKey = computePatternKey(activeTemplate.id, threadColors);
+      if (data.patternKey && data.patternKey !== currentKey) return;
       if (data.templateId === activeTemplate.id && data.colors) {
         threadColors = [...data.colors];
         if (threadListContainer) populateThreadList();
@@ -1822,8 +1883,10 @@ function savePreset() {
 function getExportData() {
   return {
     projectId: `palzzi-${activeTemplate.id}-${Date.now()}`,
-    projectName: activeTemplate.name_en, // export english name as default
+    projectName: activeTemplate.name_en,
     craftType: "KUMIHIMO_ROUND",
+    templateId: activeTemplate.id,
+    patternKey: computePatternKey(activeTemplate.id, threadColors),
     meta: {
       totalThreads: disk.nThreads,
       diskSlots: disk.slotsCount,
@@ -1836,7 +1899,10 @@ function getExportData() {
 function loadExportData(data) {
   if (data.colors && data.colors.length > 0) {
     const threadsCount = data.meta ? data.meta.totalThreads : data.colors.length;
-    let foundTmpl = KUMIHIMO_TEMPLATES.find(t => t.threads === threadsCount);
+    let foundTmpl = data.templateId ? KUMIHIMO_TEMPLATES.find(t => t.id === data.templateId) : null;
+    if (!foundTmpl) {
+      foundTmpl = KUMIHIMO_TEMPLATES.find(t => t.threads === threadsCount);
+    }
     if (!foundTmpl) {
       // Fallback
       foundTmpl = {
@@ -1874,7 +1940,8 @@ function checkUrlParams() {
   const tmplId = params.get('tmpl');
   const colorsParam = params.get('colors');
   const stepParam = params.get('step');
-  
+  let stepSet = false;
+
   if (tmplId) {
     const tmpl = KUMIHIMO_TEMPLATES.find(t => t.id === tmplId);
     if (tmpl) {
@@ -1882,19 +1949,23 @@ function checkUrlParams() {
       if (colorsParam) {
         colors = colorsParam.split(',').map(c => `#${c}`);
       }
+      templateSelect.value = tmpl.id;
       loadTemplate(tmpl, colors);
-      
+
       if (stepParam) {
         const step = parseInt(stepParam, 10);
         if (!isNaN(step) && step >= 0 && step <= MAX_STEPS) {
           currentStep = step;
           resetSimulationToStep(currentStep);
+          stepSet = true;
         }
       }
       renderAll();
+      urlPatternLoaded = true;
       showToast(currentLang === 'ko' ? "공유된 상태를 불러왔습니다!" : "Successfully loaded shared pattern state!");
     }
   }
+  return stepSet;
 }
 
 // Run Initial setup on page load
@@ -2066,9 +2137,6 @@ function drawSidebarBraidPreview(canvas, colors, nThreads, maxSteps) {
 function loadPatternToSimulator(pattern) {
   let tmpl = KUMIHIMO_TEMPLATES.find(t => t.id === pattern.templateId);
   if (!tmpl) {
-    tmpl = KUMIHIMO_TEMPLATES.find(t => t.threads === pattern.nThreads);
-  }
-  if (!tmpl) {
     tmpl = {
       id: `custom-${pattern.nThreads}`,
       name_ko: `${pattern.nThreads}가닥 커스텀`,
@@ -2086,6 +2154,14 @@ function loadPatternToSimulator(pattern) {
 
   templateSelect.value = tmpl.id;
   loadTemplate(tmpl, pattern.colors);
+
+  const targetStep = Math.min(pattern.maxSteps || MAX_STEPS, MAX_STEPS);
+  while (currentStep < targetStep) {
+    disk.weaveRowFast();
+    currentStep = disk.rowIndex;
+  }
+  updatePlaybackUI();
+
   renderAll();
   showToast(currentLang === 'ko' ? '패턴을 불러왔습니다!' : 'Pattern loaded!');
 }

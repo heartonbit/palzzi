@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico">
   <title data-i18n="galleryTitle">Palzzi - 쿠미히모 패턴 갤러리</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -14,19 +15,29 @@
     <!-- Top Header Bar -->
     <header class="top-bar">
       <div class="logo-group">
-        <div class="logo">
-          <i class="fa-solid fa-circle-nodes"></i>
-          <h1><span class="logo-text" data-i18n="logoTitle">Palzzi</span></h1>
-        </div>
-        <div class="lang-selector">
-          <button id="btn-lang-ko" class="lang-btn active">KO</button>
-          <button id="btn-lang-en" class="lang-btn">EN</button>
+        <a href="/" class="logo-link">
+          <div class="logo">
+            <img src="/logo.png" alt="Palzzi" class="logo-img">
+            <h1><span class="logo-text" data-i18n="logoTitle">Palzzi</span></h1>
+          </div>
+        </a>
+        <div class="lang-selector" id="lang-selector">
+          <button id="btn-lang-toggle" class="btn-lang-globe" title="Language">
+            <i class="fa-solid fa-globe"></i>
+          </button>
+          <div class="lang-popup hidden" id="lang-popup">
+            <button id="btn-lang-ko" class="lang-option active">한국어</button>
+            <button id="btn-lang-en" class="lang-option">English</button>
+          </div>
         </div>
       </div>
       <div class="header-actions">
         <div id="auth-area" class="auth-area">
           <!-- Auth UI dynamically populated by gallery.js -->
         </div>
+        <a href="/admin" class="btn-admin-link hidden" id="btn-admin-link" title="관리자 페이지">
+          <i class="fa-solid fa-shield-halved"></i>
+        </a>
         <a href="/simulator" class="btn-create-sim" title="시뮬레이터에서 만들기">
           <i class="fa-solid fa-plus"></i>
         </a>

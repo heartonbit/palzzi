@@ -76,7 +76,14 @@ Vitest를 활용하여 수학적 원형 회전 치환 알고리즘의 무오류 
 npm test
 ```
 
-### 5. Firebase Hosting 배포 방법 (BaaS Deployment)
+### 5. 로고 이미지 재생성
+헤더 로고(`public/logo.png`)와 파비콘(`public/favicon.ico`)은 3가닥 브레이드 z-buffer 렌더러로 생성됩니다. 색상, 꼬임 수, 각도 등을 변경하려면 아래 스크립트를 실행합니다.
+```bash
+python3 scripts/generate_logo.py
+```
+*설정 변경은 `scripts/generate_logo.py` 상단의 `COLORS`, `TWISTS`, `TILT_ANGLE` 등을 수정한 뒤 다시 실행하면 됩니다.*
+
+### 6. Firebase Hosting 배포 방법 (BaaS Deployment)
 본 웹앱은 Firebase CLI 도구를 활용해 Google Firebase Hosting에 단 몇 초 만에 프로덕션 글로벌 배포할 수 있습니다.
 
 1. **Firebase CLI 전역 설치**:
