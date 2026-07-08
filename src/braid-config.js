@@ -1,42 +1,46 @@
 /**
  * Centralized braid preview configuration.
- * All rendering contexts (main simulator, sidebar, gallery) import from here
+ * All rendering contexts (main simulator, sidebar, gallery, visdev) import from here
  * so that braid properties can be tuned from a single place.
  */
 
 // ── Power-law scaling constants ──────────────────────────────────
-// radius  = baseRadius × (nThreads / 8) ^ RADIUS_EXPONENT
-// pitch   = radius × PITCH_RATIO × (nThreads / 8) ^ PITCH_EXPONENT
-export const RADIUS_EXPONENT = 0.70;
-export const PITCH_RATIO     = 0.15;
-export const PITCH_EXPONENT  = 0.30;
+// radius    = RADIUS_BASE × (nThreads / 8) ^ RADIUS_EXPONENT
+// pitch     = radius × PITCH_RATIO × (nThreads / 8) ^ PITCH_EXPONENT × PITCH_MULTIPLIER
+// vStretch  = VSTRETCH_BASE × (nThreads / 8) ^ VSTRETCH_EXPONENT
+export const RADIUS_BASE      = 11.5;
+export const RADIUS_EXPONENT  = 0.6;
+export const PITCH_RATIO      = 0.1;
+export const PITCH_EXPONENT   = 0.2;
+export const PITCH_MULTIPLIER = 3;
+export const VSTRETCH_BASE    = 0.8;
+export const VSTRETCH_EXPONENT = 0.2;
+
+// ── Strand width ─────────────────────────────────────────────────
+export const STRAND_WIDTH = 8;
 
 // ── Shared rendering constants ───────────────────────────────────
 export const CULLING_RATIO  = 0.7;   // Cull segments behind  −radius × this
 export const LIGHTING_MIN   = 0.52;  // Lighting floor
 export const LIGHTING_RANGE = 0.48;  // Lighting dynamic range
-export const MAX_STEPS      = 500; // Default simulation length (rows)
+export const MAX_STEPS      = 500;   // Default simulation length (rows)
 
 // ── Per-context configurations ───────────────────────────────────
-// baseRadius      : cylinder radius for 8 threads (px)
-// strandWidthRatio: strand thickness as fraction of baseRadius
+// strandWidthRatio: strand thickness as fraction of RADIUS_BASE (for scaled contexts)
 // strandWidthMin  : clamp floor (px)
 // strandWidthMax  : clamp ceiling (px)
 export const BRAID_CONTEXTS = {
   main: {
-    baseRadius:       7.5,
     strandWidthRatio: 0.6,
     strandWidthMin:   5,
     strandWidthMax:   18,
   },
   sidebar: {
-    baseRadius:       7.5,
     strandWidthRatio: 0.5,
     strandWidthMin:   3,
     strandWidthMax:   7,
   },
   gallery: {
-    baseRadius:       7.5,
     strandWidthRatio: 0.6,
     strandWidthMin:   5,
     strandWidthMax:   12,

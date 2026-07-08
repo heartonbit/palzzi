@@ -208,7 +208,18 @@
     </div>
     <div class="control-group">
       <label>Strand Width (Fixed)</label>
-      <input type="number" id="global-strand-width" min="1" max="15" step="0.5" value="6">
+      <input type="number" id="global-strand-width" min="1" max="15" step="0.5" value="8">
+    </div>
+    <div class="control-group">
+      <label>Pitch Multiplier</label>
+      <input type="number" id="global-pitch-multiplier" min="0.1" max="10" step="0.1" value="3.0">
+    </div>
+    <div class="control-group">
+      <label>Color Mode</label>
+      <select id="color-mode">
+        <option value="simple">Simple (2 colors)</option>
+        <option value="complex" selected>Complex (multi)</option>
+      </select>
     </div>
     <div class="control-group">
       <label>Effects</label>
@@ -227,6 +238,11 @@
 
   <script type="module">
     import { KumihimoDisk } from './src/engine/kumihimo.js';
+    import {
+      RADIUS_BASE, RADIUS_EXPONENT, PITCH_RATIO, PITCH_EXPONENT,
+      PITCH_MULTIPLIER, VSTRETCH_BASE, VSTRETCH_EXPONENT, STRAND_WIDTH,
+      LIGHTING_MIN, LIGHTING_RANGE
+    } from './src/braid-config.js';
 
     // Thread color palette
     const COLOR_PALETTE = [
@@ -241,18 +257,22 @@
 
     const TEST_CONFIGS = [8, 12, 16, 20, 24, 28, 32];
 
-    // Default parameters
+    // Default parameters (from shared config)
     const DEFAULTS = {
-      radiusBase: 7.5,
-      radiusExponent: 0.70,
-      pitchRatio: 1.19 / 7.5,
-      pitchExponent: 0.30,
-      lightingMin: 0.52,
-      lightingRange: 0.48,
+      radiusBase: RADIUS_BASE,
+      radiusExponent: RADIUS_EXPONENT,
+      pitchRatio: PITCH_RATIO,
+      pitchExponent: PITCH_EXPONENT,
+      vStretchBase: VSTRETCH_BASE,
+      vStretchExponent: VSTRETCH_EXPONENT,
+      lightingMin: LIGHTING_MIN,
+      lightingRange: LIGHTING_RANGE,
     };
 
     let canvasHeight = 300;
-    let globalStrandWidth = 6.0;
+    let globalStrandWidth = STRAND_WIDTH;
+    let globalPitchMultiplier = PITCH_MULTIPLIER;
+    let colorMode = 'complex';
     let fxDepthWidth = false;
     let fxShadow = false;
     let fxContrast = false;
@@ -268,6 +288,7 @@
     const grid = document.getElementById('grid');
     const canvasHeightInput = document.getElementById('canvas-height');
     const globalStrandWidthInput = document.getElementById('global-strand-width');
+    const globalPitchMultiplierInput = document.getElementById('global-pitch-multiplier');
     const btnCopyFromPrev = document.getElementById('btn-copy-from-prev');
     const btnCopyAll = document.getElementById('btn-copy-all');
     const btnReset = document.getElementById('btn-reset');
@@ -294,11 +315,15 @@
     }
 
     function calculatePitch(nThreads, radius, params) {
-      return 8;
+      return radius * params.pitchRatio * Math.pow(nThreads / 8, params.pitchExponent) * globalPitchMultiplier;
+    }
+
+    function calculateVStretch(nThreads, params) {
+      return params.vStretchBase * Math.pow(nThreads / 8, params.vStretchExponent);
     }
 
     // Drawing Braid
-    function drawBraidPreview(canvas, nThreads, radius, pitch, params) {
+    function drawBraidPreview(canvas, nThreads, radius, pitch, vStretch, params) {
       const ctx = canvas.getContext('2d');
       const width = canvas.width;
       const height = canvas.height;
@@ -308,8 +333,15 @@
       ctx.fillRect(0, 0, width, height);
 
       const threadColors = [];
-      for (let i = 0; i < nThreads; i++) {
-        threadColors.push(COLOR_PALETTE[i % COLOR_PALETTE.length]);
+      if (colorMode === 'simple') {
+        const simpleColors = ['#e63946', '#264653'];
+        for (let i = 0; i < nThreads; i++) {
+          threadColors.push(simpleColors[i % 2]);
+        }
+      } else {
+        for (let i = 0; i < nThreads; i++) {
+          threadColors.push(COLOR_PALETTE[i % COLOR_PALETTE.length]);
+        }
       }
 
       const disk = new KumihimoDisk(nThreads);
@@ -334,8 +366,8 @@
       for (let r = 1; r < endRowIdx; r++) {
         const prevRow = disk.productColors[r - 1];
         const currRow = disk.productColors[r];
-        const prevY = startY + (r - 1) * pitch;
-        const currY = startY + r * pitch;
+        const prevY = startY + (r - 1) * pitch * vStretch;
+        const currY = startY + r * pitch * vStretch;
 
         for (let i = 0; i < disk.nThreads; i++) {
           const prevThread = prevRow[i];
@@ -463,6 +495,8 @@
       controls.appendChild(createControlRow('Rad Exp', 'radiusExponent', 0.1, 1.5, 0.05));
       controls.appendChild(createControlRow('Pitch Ratio', 'pitchRatio', 0.05, 0.3, 0.001));
       controls.appendChild(createControlRow('Pitch Exp', 'pitchExponent', 0.1, 1.5, 0.05));
+      controls.appendChild(createControlRow('VStr Base', 'vStretchBase', 0.5, 5.0, 0.1));
+      controls.appendChild(createControlRow('VStr Exp', 'vStretchExponent', -1.0, 1.5, 0.05));
       controls.appendChild(createControlRow('Light Min', 'lightingMin', 0.3, 0.7, 0.05));
       controls.appendChild(createControlRow('Light Range', 'lightingRange', 0.3, 0.6, 0.05));
 
@@ -520,16 +554,17 @@
       
       const radius = calculateRadius(nThreads, params);
       const pitch = calculatePitch(nThreads, radius, params);
+      const vStretch = calculateVStretch(nThreads, params);
 
-      drawBraidPreview(canvas, nThreads, radius, pitch, params);
+      drawBraidPreview(canvas, nThreads, radius, pitch, vStretch, params);
 
-      // 여기에 radiusExponent와 pitchExponent 디스플레이 추가
       info.innerHTML = `
         <span>Radius: <strong>${radius.toFixed(1)}px</strong></span>
         <span>Pitch: <strong>${pitch.toFixed(2)}px</strong></span>
+        <span>VStretch: <strong>${vStretch.toFixed(2)}</strong></span>
         <span>Rad Exp: <strong>${params.radiusExponent.toFixed(2)}</strong></span>
         <span>Pitch Exp: <strong>${params.pitchExponent.toFixed(2)}</strong></span>
-        <span>Rows: <strong>${Math.floor((canvasHeight - 40) / pitch)}</strong></span>
+        <span>Rows: <strong>${Math.floor((canvasHeight - 40) / (pitch * vStretch))}</strong></span>
       `;
     }
 
@@ -590,6 +625,16 @@
     
     globalStrandWidthInput.addEventListener('input', (e) => {
       globalStrandWidth = parseFloat(e.target.value) || 6;
+      TEST_CONFIGS.forEach(n => renderCard(n));
+    });
+
+    globalPitchMultiplierInput.addEventListener('input', (e) => {
+      globalPitchMultiplier = parseFloat(e.target.value) || 1;
+      TEST_CONFIGS.forEach(n => renderCard(n));
+    });
+
+    document.getElementById('color-mode').addEventListener('change', (e) => {
+      colorMode = e.target.value;
       TEST_CONFIGS.forEach(n => renderCard(n));
     });
 

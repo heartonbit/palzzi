@@ -14,8 +14,8 @@ import {
   doc
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
-import { KumihimoDisk, calcBraidRadius, calcBraidPitch } from './engine/kumihimo.js';
-import { BRAID_CONTEXTS, CULLING_RATIO, LIGHTING_MIN, LIGHTING_RANGE } from './braid-config.js';
+import { KumihimoDisk, calcBraidRadius, calcBraidPitch, calcBraidVStretch } from './engine/kumihimo.js';
+import { BRAID_CONTEXTS, CULLING_RATIO, LIGHTING_MIN, LIGHTING_RANGE, RADIUS_BASE } from './braid-config.js';
 import { initAdSense, injectGalleryBannerAd } from './ads.js';
 
 // --- i18n Translations (subset for gallery page) ---
@@ -41,7 +41,6 @@ const GALLERY_TRANSLATIONS = {
     deleteFailed: "삭제에 실패했습니다.",
     threadsUnit: "가닥",
     metaCreator: "만든 이",
-    metaThreadLength: "20cm 팔찌 실 길이",
     unknownPattern: "알 수 없는 패턴",
     unknownDate: "날짜 없음",
     signInWithGoogle: "Google 로그인",
@@ -70,7 +69,6 @@ const GALLERY_TRANSLATIONS = {
     deleteFailed: "Failed to delete pattern.",
     threadsUnit: "strands",
     metaCreator: "Creator",
-    metaThreadLength: "Thread Length for 20cm bracelet",
     unknownPattern: "Unknown Pattern",
     unknownDate: "No date",
     signInWithGoogle: "Sign in with Google",
@@ -100,7 +98,6 @@ const btnCloseDetail = document.getElementById('btn-close-detail');
 const detailCanvas = document.getElementById('detail-canvas');
 const detailName = document.getElementById('detail-name');
 const detailThreads = document.getElementById('detail-threads');
-const detailThreadLength = document.getElementById('detail-thread-length');
 const detailCreator = document.getElementById('detail-creator');
 const detailCreated = document.getElementById('detail-created');
 const detailColorList = document.getElementById('detail-color-list');
@@ -323,10 +320,11 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
   disk.init(threadColors);
 
   // Calculate pitch first to determine how many rows are needed to fill the canvas
-  const sBaseRadius = BRAID_CONTEXTS.gallery.baseRadius;
-  const sRadius = calcBraidRadius(nThreads, sBaseRadius);
+  const sRadius = calcBraidRadius(nThreads);
   const sPitch = calcBraidPitch(nThreads, sRadius);
-  const maxVisibleRows = Math.floor((height - 40) / sPitch);
+  const sVStretch = calcBraidVStretch(nThreads);
+  const effectivePitch = sPitch * sVStretch;
+  const maxVisibleRows = Math.floor((height - 40) / effectivePitch);
 
   // Simulate extra rows beyond the canvas so the braid overflows naturally (canvas clips the rest)
   const simSteps = Math.min(maxSteps, Math.floor(maxVisibleRows * 2));
@@ -374,14 +372,14 @@ function drawBraidPreview(canvas, colors, nThreads, maxSteps, tiltDeg = 0) {
   const endRowIdx = disk.productColors.length;
 
   // Strand width: match main.js visual ratio, slightly thicker to eliminate row gaps
-  const strandWidth = Math.max(BRAID_CONTEXTS.gallery.strandWidthMin, Math.min(BRAID_CONTEXTS.gallery.strandWidthMax, sBaseRadius * BRAID_CONTEXTS.gallery.strandWidthRatio));
+  const strandWidth = Math.max(BRAID_CONTEXTS.gallery.strandWidthMin, Math.min(BRAID_CONTEXTS.gallery.strandWidthMax, RADIUS_BASE * BRAID_CONTEXTS.gallery.strandWidthRatio));
 
   const segments = [];
   for (let r = 1; r < endRowIdx; r++) {
     const prevRow = disk.productColors[r - 1];
     const currRow = disk.productColors[r];
-    const prevY = sStartY + (r - 1) * sPitch;
-    const currY = sStartY + r * sPitch;
+    const prevY = sStartY + (r - 1) * effectivePitch;
+    const currY = sStartY + r * effectivePitch;
 
     for (let i = 0; i < disk.nThreads; i++) {
       const prevThread = prevRow[i];
@@ -470,15 +468,6 @@ function showDetail(pattern) {
     : (pattern.nameEn || pattern.templateName || t.unknownPattern);
   detailName.textContent = patternName;
   detailThreads.textContent = pattern.nThreads ? `${pattern.nThreads}${t.threadsUnit}` : '-';
-  
-  // Calculate thread length for 20cm bracelet
-  // Formula: desired length × 3.5 + 30cm (12 inches) for knotting/finishing
-  // Reference: Kumihimo braiding consumes ~3-3.5× braid length per thread
-  const braceletLengthCm = 20;
-  const threadMultiplier = 3.5;
-  const finishingAllowanceCm = 30; // ~12 inches for knotting and finishing
-  const threadLengthPerStrand = Math.ceil(braceletLengthCm * threadMultiplier + finishingAllowanceCm);
-  detailThreadLength.textContent = pattern.nThreads ? `약 ${threadLengthPerStrand}cm × ${pattern.nThreads}${t.threadsUnit}` : '-';
   
   detailCreator.textContent = pattern.ownerName || 'Anonymous';
 

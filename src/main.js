@@ -1,5 +1,12 @@
-import { KumihimoDisk, calcBraidRadius, calcBraidPitch } from './engine/kumihimo.js';
-import { BRAID_CONTEXTS, CULLING_RATIO, LIGHTING_MIN, LIGHTING_RANGE, MAX_STEPS } from './braid-config.js';
+import { KumihimoDisk, calcBraidRadius, calcBraidPitch, calcBraidVStretch } from './engine/kumihimo.js';
+import {
+  CULLING_RATIO, MAX_STEPS,
+  RADIUS_BASE, RADIUS_EXPONENT,
+  PITCH_RATIO, PITCH_EXPONENT, PITCH_MULTIPLIER,
+  VSTRETCH_BASE, VSTRETCH_EXPONENT,
+  STRAND_WIDTH,
+  LIGHTING_MIN, LIGHTING_RANGE,
+} from './braid-config.js';
 import { KUMIHIMO_TEMPLATES } from './templates/templates.js';
 import { db } from './firebase/config.js';
 import {
@@ -46,6 +53,22 @@ const TRANSLATIONS = {
     tabVirtualDesc: "현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.",
     tabChartDesc: "실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)",
     zoomLabel: "화면 배율:",
+    pitchMultLabel: "땋임 배율:",
+    strandWidthLabel: "실 굵기:",
+    settingsRenderParams: "렌더링 파라미터",
+    radiusBaseLabel: "반지름 기준:",
+    radiusExpLabel: "반지름 지수:",
+    pitchRatioLabel: "피치 비율:",
+    pitchExpLabel: "피치 지수:",
+    vstretchBaseLabel: "세로 늘림 기준:",
+    vstretchExpLabel: "세로 늘림 지수:",
+    lightingMinLabel: "조명 최소:",
+    lightingRangeLabel: "조명 범위:",
+    settingsEffects: "효과",
+    fxDepthWidth: "깊이별 굵기",
+    fxShadow: "전면 그림자",
+    fxContrast: "고대비 조명",
+    resetRenderParams: "렌더링 파라미터 초기화",
     pitchLabel: "땋임 촘촘함:",
     dragHint: "아래 컨트롤러를 이용해 직조하세요.",
     popupTitle: "실 색상 선택",
@@ -85,7 +108,6 @@ const TRANSLATIONS = {
     toastSaveGalleryError: "갤러리 저장에 실패했습니다.",
     galleryPatternName: "내 쿠미히모 패턴",
     savePatternPrompt: "패턴 이름을 입력하세요:",
-    strandWidthLabel: "실 굵기:",
     settingsTitle: "설정",
     settingsDisplay: "브레이드 표시 설정",
     settingsStorage: "저장 및 공유",
@@ -125,6 +147,22 @@ const TRANSLATIONS = {
     tabVirtualDesc: "Displays the spiral twists of the braid up to the current step in a 2D cylindrical projection.",
     tabChartDesc: "Visualizes thread transposition history in a pattern grid. (X-axis: thread, Y-axis: step)",
     zoomLabel: "View Zoom:",
+    pitchMultLabel: "Pitch Multiplier:",
+    strandWidthLabel: "Strand Width:",
+    settingsRenderParams: "Rendering Parameters",
+    radiusBaseLabel: "Radius Base:",
+    radiusExpLabel: "Radius Exponent:",
+    pitchRatioLabel: "Pitch Ratio:",
+    pitchExpLabel: "Pitch Exponent:",
+    vstretchBaseLabel: "V-Stretch Base:",
+    vstretchExpLabel: "V-Stretch Exponent:",
+    lightingMinLabel: "Lighting Min:",
+    lightingRangeLabel: "Lighting Range:",
+    settingsEffects: "Effects",
+    fxDepthWidth: "Depth Width",
+    fxShadow: "Front Shadow",
+    fxContrast: "High Contrast",
+    resetRenderParams: "Reset Rendering Parameters",
     pitchLabel: "Braid Tension:",
     dragHint: "Use the playback controls below to braid.",
     popupTitle: "Thread Color",
@@ -164,7 +202,6 @@ const TRANSLATIONS = {
     toastSaveGalleryError: "Failed to save to gallery.",
     galleryPatternName: "My Kumihimo Pattern",
     savePatternPrompt: "Enter pattern name:",
-    strandWidthLabel: "Strand width:",
     settingsTitle: "Settings",
     settingsDisplay: "Braid Display",
     settingsStorage: "Storage & Sharing",
@@ -200,21 +237,37 @@ function computePatternKey(templateId, colors) {
 }
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
 let braidZoom = 0.70; // Braid viewer scale level. Default is zoom out 70% (UX upgrade)
-let braidRadius = BRAID_CONTEXTS.main.baseRadius; // Cylinder radius (dynamically adjusted per thread count)
+let braidRadius = RADIUS_BASE; // Cylinder radius (dynamically adjusted per thread count)
 let braidPitch = 3.5; // Braid weaving compactness pitch spacing
-let strandWidthRatio = BRAID_CONTEXTS.main.strandWidthRatio; // Strand width as ratio of base radius (controls thickness)
+let braidVStretch = 1.0; // Vertical stretch factor
+
+// Tunable rendering parameters (mirrors visdev.html)
+let braidRadiusBase = RADIUS_BASE;
+let braidRadiusExponent = RADIUS_EXPONENT;
+let braidPitchRatio = PITCH_RATIO;
+let braidPitchExponent = PITCH_EXPONENT;
+let braidPitchMultiplier = PITCH_MULTIPLIER;
+let braidVStretchBase = VSTRETCH_BASE;
+let braidVStretchExponent = VSTRETCH_EXPONENT;
+let braidStrandWidth = STRAND_WIDTH;
+let braidLightingMin = LIGHTING_MIN;
+let braidLightingRange = LIGHTING_RANGE;
+let fxDepthWidth = true;
+let fxShadow = true;
+let fxContrast = false;
 
 // Auto-adjust radius and pitch based on thread count for optimal preview
-// Strand width remains fixed (user preference) — radius and pitch scale dynamically
+// Uses tunable parameters from settings sliders (mirrors visdev.html formulas)
 function autoAdjustBraidParams() {
   const n = disk.nThreads;
-  braidRadius = calcBraidRadius(n, BRAID_CONTEXTS.main.baseRadius);
-  braidPitch = calcBraidPitch(n, braidRadius);
-  // Sync settings pitch slider to reflect the new value
-  const settingsPitch = document.getElementById('settings-pitch');
-  const settingsPitchVal = document.getElementById('settings-pitch-val');
-  if (settingsPitch) settingsPitch.value = braidPitch;
-  if (settingsPitchVal) settingsPitchVal.textContent = braidPitch.toFixed(1);
+  braidRadius = braidRadiusBase * Math.pow(n / 8, braidRadiusExponent);
+  braidPitch = braidRadius * braidPitchRatio * Math.pow(n / 8, braidPitchExponent) * braidPitchMultiplier;
+  braidVStretch = braidVStretchBase * Math.pow(n / 8, braidVStretchExponent);
+  // Sync settings pitch-multiplier slider to reflect the current value
+  const settingsPitchMult = document.getElementById('settings-pitch-mult');
+  const settingsPitchMultVal = document.getElementById('settings-pitch-mult-val');
+  if (settingsPitchMult) settingsPitchMult.value = braidPitchMultiplier;
+  if (settingsPitchMultVal) settingsPitchMultVal.textContent = braidPitchMultiplier.toFixed(1);
 }
 
 // Color Presets Manager State (doc/7_UI)
@@ -857,6 +910,8 @@ function drawBraid() {
   // Cylinder Geometric Constants
   const radius = braidRadius; // Cylinder radius (dynamically scaled per thread count)
   const pitch = braidPitch; // Compact pitch spacing for tight weaving density (UX Upgrade)
+  const vStretch = braidVStretch; // Vertical stretch factor
+  const effectivePitch = pitch * vStretch;
   const nThreads = disk.nThreads;
   
   // Draw top hanger loop or starting knot inside scale
@@ -874,7 +929,7 @@ function drawBraid() {
   ctxBraid.lineWidth = 5;
   ctxBraid.stroke();
   
-  const maxVisibleRows = Math.floor(((height / braidZoom) - 80) / pitch);
+  const maxVisibleRows = Math.floor(((height / braidZoom) - 80) / effectivePitch);
   const totalRows = disk.productColors.length;
   const endRowIdx = Math.min(totalRows, Math.max(1, maxVisibleRows));
   
@@ -885,8 +940,8 @@ function drawBraid() {
     const prevRow = disk.productColors[r - 1];
     const currRow = disk.productColors[r];
     
-    const prevY = 32 + (r - 1) * pitch;
-    const currY = 32 + r * pitch;
+    const prevY = 32 + (r - 1) * effectivePitch;
+    const currY = 32 + r * effectivePitch;
     
     for (let i = 0; i < nThreads; i++) {
       const prevThread = prevRow[i];
@@ -914,72 +969,58 @@ function drawBraid() {
       // Only keep segments that are visible on the front of the cylinder (Z > -10 for smooth curvature)
       if (prevZ > -radius * CULLING_RATIO || currZ > -radius * CULLING_RATIO) {
         const avgZ = (prevZ + currZ) / 2;
-        // Use max Z (most front-facing point) for depth sorting to handle crossings correctly
-        // This ensures threads at the front are drawn last and appear on top
-        const maxZ = Math.max(prevZ, currZ);
         segments.push({
-          threadId: i,
           color: currThread.color,
           fx: prevX,
           fy: prevY,
           tx: currX,
           ty: currY,
-          fz: prevZ,
-          tz: currZ,
-          avgZ: avgZ,
-          maxZ: maxZ
+          avgZ,
+          prevZ,
+          currZ
         });
       }
     }
   }
 
-  // Depth sort: back threads first (smaller maxZ), front threads last (larger maxZ)
-  // Using maxZ instead of avgZ ensures threads at the front-center are drawn on top
-  segments.sort((a, b) => a.maxZ - b.maxZ);
-  
-  // Render sorted segments to build a perfect overlapping cylinder braid with WAVY natural edges
-  segments.forEach(seg => {
-    ctxBraid.save();
-    ctxBraid.beginPath();
-    ctxBraid.moveTo(seg.fx, seg.fy);
-    ctxBraid.lineTo(seg.tx, seg.ty);
-    
-    // Compute thread thickness — controlled by strandWidthRatio slider
-    const { strandWidthMin, strandWidthMax, baseRadius: mainBaseRadius } = BRAID_CONTEXTS.main;
-    const strandWidth = Math.max(strandWidthMin, Math.min(strandWidthMax, mainBaseRadius * strandWidthRatio));
-    
-    ctxBraid.lineWidth = strandWidth;
-    ctxBraid.lineCap = 'round';
-    
-    // Calculate realistic lighting factor based on Z-depth (center is bright, sides are dark)
-    // This removes the grey overlay box entirely and makes colors extremely glowing!
-    const lightingFactor = LIGHTING_MIN + LIGHTING_RANGE * ((seg.avgZ + radius) / (2 * radius));
-    const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
-    
-    ctxBraid.strokeStyle = shadedColor;
-    
-    // Draw thread segments with smooth depth overlap shadow
-    ctxBraid.shadowColor = 'rgba(0,0,0,0.18)';
-    ctxBraid.shadowBlur = 2.5;
-    ctxBraid.shadowOffsetY = 1;
-    ctxBraid.stroke();
-    
-    // Draw bright luster highlight inside the fiber for silk texture sheen
-    ctxBraid.beginPath();
-    ctxBraid.moveTo(seg.fx, seg.fy);
-    ctxBraid.lineTo(seg.tx, seg.ty);
-    ctxBraid.strokeStyle = 'rgba(255, 255, 255, 0.42)';
-    ctxBraid.lineWidth = strandWidth * 0.35;
-    ctxBraid.shadowColor = 'transparent'; // No blur for highlights
-    ctxBraid.stroke();
-    
-    ctxBraid.restore();
-  });
+  // Depth sort: back-to-front by avgZ
+  segments.sort((a, b) => a.avgZ - b.avgZ);
 
-  // Note: We completely removed the direct linear-gradient rect overlay (fillRect) that was
-  // causing the edges to be hard straight lines and making the colors grey and dull.
-  // Now, because lineCap='round' is used on each segment, the cylinder naturally has a beautiful,
-  // wavy, bumpy outline (실의 꼬임 결에 따른 올록볼록한 입체 윤곽선) which looks like real thread!
+  // Render sorted segments (visdev-style depth effects)
+  segments.forEach(seg => {
+    const zNorm = (seg.avgZ + radius) / (2 * radius);
+
+    let lightingFactor = braidLightingMin + braidLightingRange * zNorm;
+    if (fxContrast) {
+      lightingFactor = 0.3 + 0.9 * zNorm;
+    }
+    const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
+
+    let lw = braidStrandWidth;
+    if (fxDepthWidth) {
+      lw = braidStrandWidth * (0.5 + 0.8 * zNorm);
+    }
+
+    ctxBraid.beginPath();
+    ctxBraid.moveTo(seg.fx, seg.fy);
+    ctxBraid.lineTo(seg.tx, seg.ty);
+    ctxBraid.lineWidth = lw;
+    ctxBraid.lineCap = 'round';
+    ctxBraid.strokeStyle = shadedColor;
+
+    if (fxShadow) {
+      const sBlur = 2 + 5 * zNorm;
+      const sOffY = 1 + 3 * zNorm;
+      ctxBraid.shadowColor = `rgba(0,0,0,${0.1 + 0.35 * zNorm})`;
+      ctxBraid.shadowBlur = sBlur;
+      ctxBraid.shadowOffsetY = sOffY;
+    } else {
+      ctxBraid.shadowColor = 'rgba(0,0,0,0.18)';
+      ctxBraid.shadowBlur = 2.5;
+      ctxBraid.shadowOffsetY = 1;
+    }
+    ctxBraid.stroke();
+  });
 
   // 3. Draw Bottom Fringe knot and loose threads hanging down
   const bottomY = 32 + (endRowIdx - 1) * pitch;
@@ -1365,13 +1406,14 @@ function setupEventListeners() {
     }, { passive: false });
   }
 
-  // Settings: Pitch
-  const settingsPitch = document.getElementById('settings-pitch');
-  const settingsPitchVal = document.getElementById('settings-pitch-val');
-  if (settingsPitch) {
-    settingsPitch.addEventListener('input', (e) => {
-      braidPitch = parseFloat(e.target.value);
-      if (settingsPitchVal) settingsPitchVal.textContent = braidPitch.toFixed(1);
+  // Settings: Pitch Multiplier
+  const settingsPitchMult = document.getElementById('settings-pitch-mult');
+  const settingsPitchMultVal = document.getElementById('settings-pitch-mult-val');
+  if (settingsPitchMult) {
+    settingsPitchMult.addEventListener('input', (e) => {
+      braidPitchMultiplier = parseFloat(e.target.value);
+      if (settingsPitchMultVal) settingsPitchMultVal.textContent = braidPitchMultiplier.toFixed(1);
+      autoAdjustBraidParams();
       renderAll();
     });
   }
@@ -1381,11 +1423,92 @@ function setupEventListeners() {
   const settingsStrandWidthVal = document.getElementById('settings-strand-width-val');
   if (settingsStrandWidth) {
     settingsStrandWidth.addEventListener('input', (e) => {
-      strandWidthRatio = parseFloat(e.target.value);
-      if (settingsStrandWidthVal) settingsStrandWidthVal.textContent = strandWidthRatio.toFixed(2);
+      braidStrandWidth = parseFloat(e.target.value);
+      if (settingsStrandWidthVal) settingsStrandWidthVal.textContent = braidStrandWidth.toFixed(1);
       renderAll();
     });
   }
+
+  // Settings: Rendering Parameter Sliders
+  const renderParamConfigs = [
+    { id: 'settings-radius-base',    valId: 'settings-radius-base-val',    setter: v => braidRadiusBase = v,       fmt: v => v.toFixed(1),   recompute: true },
+    { id: 'settings-radius-exp',     valId: 'settings-radius-exp-val',     setter: v => braidRadiusExponent = v,   fmt: v => v.toFixed(2),   recompute: true },
+    { id: 'settings-pitch-ratio',    valId: 'settings-pitch-ratio-val',    setter: v => braidPitchRatio = v,       fmt: v => v.toFixed(3),   recompute: true },
+    { id: 'settings-pitch-exp',      valId: 'settings-pitch-exp-val',      setter: v => braidPitchExponent = v,    fmt: v => v.toFixed(2),   recompute: true },
+    { id: 'settings-vstretch-base',  valId: 'settings-vstretch-base-val',  setter: v => braidVStretchBase = v,     fmt: v => v.toFixed(1),   recompute: true },
+    { id: 'settings-vstretch-exp',   valId: 'settings-vstretch-exp-val',   setter: v => braidVStretchExponent = v, fmt: v => v.toFixed(2),   recompute: true },
+    { id: 'settings-lighting-min',   valId: 'settings-lighting-min-val',   setter: v => braidLightingMin = v,      fmt: v => v.toFixed(2),   recompute: false },
+    { id: 'settings-lighting-range', valId: 'settings-lighting-range-val', setter: v => braidLightingRange = v,   fmt: v => v.toFixed(2),   recompute: false },
+  ];
+
+  renderParamConfigs.forEach(cfg => {
+    const slider = document.getElementById(cfg.id);
+    const valSpan = document.getElementById(cfg.valId);
+    if (slider) {
+      slider.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        cfg.setter(v);
+        if (valSpan) valSpan.textContent = cfg.fmt(v);
+        if (cfg.recompute) autoAdjustBraidParams();
+        renderAll();
+      });
+    }
+  });
+
+  // Settings: Effect Checkboxes
+  const fxDW = document.getElementById('fx-depth-width');
+  if (fxDW) fxDW.addEventListener('change', (e) => { fxDepthWidth = e.target.checked; renderAll(); });
+  const fxS = document.getElementById('fx-shadow');
+  if (fxS) fxS.addEventListener('change', (e) => { fxShadow = e.target.checked; renderAll(); });
+  const fxC = document.getElementById('fx-contrast');
+  if (fxC) fxC.addEventListener('change', (e) => { fxContrast = e.target.checked; renderAll(); });
+
+  // Settings: Reset Rendering Parameters
+  const btnResetRender = document.getElementById('btn-reset-render');
+  if (btnResetRender) {
+    btnResetRender.addEventListener('click', () => {
+      braidRadiusBase = RADIUS_BASE;
+      braidRadiusExponent = RADIUS_EXPONENT;
+      braidPitchRatio = PITCH_RATIO;
+      braidPitchExponent = PITCH_EXPONENT;
+      braidPitchMultiplier = PITCH_MULTIPLIER;
+      braidVStretchBase = VSTRETCH_BASE;
+      braidVStretchExponent = VSTRETCH_EXPONENT;
+      braidStrandWidth = STRAND_WIDTH;
+      braidLightingMin = LIGHTING_MIN;
+      braidLightingRange = LIGHTING_RANGE;
+      fxDepthWidth = true;
+      fxShadow = true;
+      fxContrast = false;
+
+      // Sync all sliders to default values
+      const syncMap = [
+        ['settings-radius-base', 'settings-radius-base-val', RADIUS_BASE, v => v.toFixed(1)],
+        ['settings-radius-exp', 'settings-radius-exp-val', RADIUS_EXPONENT, v => v.toFixed(2)],
+        ['settings-pitch-ratio', 'settings-pitch-ratio-val', PITCH_RATIO, v => v.toFixed(3)],
+        ['settings-pitch-exp', 'settings-pitch-exp-val', PITCH_EXPONENT, v => v.toFixed(2)],
+        ['settings-vstretch-base', 'settings-vstretch-base-val', VSTRETCH_BASE, v => v.toFixed(1)],
+        ['settings-vstretch-exp', 'settings-vstretch-exp-val', VSTRETCH_EXPONENT, v => v.toFixed(2)],
+        ['settings-lighting-min', 'settings-lighting-min-val', LIGHTING_MIN, v => v.toFixed(2)],
+        ['settings-lighting-range', 'settings-lighting-range-val', LIGHTING_RANGE, v => v.toFixed(2)],
+        ['settings-pitch-mult', 'settings-pitch-mult-val', PITCH_MULTIPLIER, v => v.toFixed(1)],
+        ['settings-strand-width', 'settings-strand-width-val', STRAND_WIDTH, v => v.toFixed(1)],
+      ];
+      syncMap.forEach(([sid, vid, val, fmt]) => {
+        const s = document.getElementById(sid);
+        const v = document.getElementById(vid);
+        if (s) s.value = val;
+        if (v) v.textContent = fmt(val);
+      });
+      if (fxDW) fxDW.checked = true;
+      if (fxS) fxS.checked = true;
+      if (fxC) fxC.checked = false;
+
+      autoAdjustBraidParams();
+      renderAll();
+    });
+  }
+
 
   // i18n Language toggle clicks
   btnLangToggle.addEventListener('click', (e) => {
@@ -2067,10 +2190,11 @@ function drawSidebarBraidPreview(canvas, colors, nThreads, maxSteps) {
   const previewDisk = new KumihimoDisk(nThreads);
   previewDisk.init(threadColors);
 
-  const sBaseRadius = BRAID_CONTEXTS.sidebar.baseRadius;
-  const sRadius = calcBraidRadius(nThreads, sBaseRadius);
+  const sRadius = calcBraidRadius(nThreads);
   const sPitch = calcBraidPitch(nThreads, sRadius);
-  const maxVisibleRows = Math.floor((h - 4) / sPitch);
+  const sVStretch = calcBraidVStretch(nThreads);
+  const effectivePitch = sPitch * sVStretch;
+  const maxVisibleRows = Math.floor((h - 4) / effectivePitch);
 
   // Simulate extra rows beyond the canvas so the braid overflows naturally (canvas clips the rest)
   const simSteps = Math.min(maxSteps, Math.floor(maxVisibleRows * 2));
@@ -2079,7 +2203,7 @@ function drawSidebarBraidPreview(canvas, colors, nThreads, maxSteps) {
   if (previewDisk.productColors.length <= 1) return;
 
   const sStartY = 8;
-  const strandWidth = Math.max(BRAID_CONTEXTS.sidebar.strandWidthMin, Math.min(BRAID_CONTEXTS.sidebar.strandWidthMax, sBaseRadius * BRAID_CONTEXTS.sidebar.strandWidthRatio));
+  const SIDEBAR_STRAND_WIDTH = 3;
 
   ctx.save();
   ctx.translate(w / 2, 0);
@@ -2090,8 +2214,8 @@ function drawSidebarBraidPreview(canvas, colors, nThreads, maxSteps) {
   for (let r = 1; r < endRowIdx; r++) {
     const prevRow = previewDisk.productColors[r - 1];
     const currRow = previewDisk.productColors[r];
-    const prevY = sStartY + (r - 1) * sPitch;
-    const currY = sStartY + r * sPitch;
+    const prevY = sStartY + (r - 1) * effectivePitch;
+    const currY = sStartY + r * effectivePitch;
 
     for (let i = 0; i < previewDisk.nThreads; i++) {
       const prevThread = prevRow[i];
@@ -2121,13 +2245,20 @@ function drawSidebarBraidPreview(canvas, colors, nThreads, maxSteps) {
   segments.sort((a, b) => a.avgZ - b.avgZ);
 
   segments.forEach(seg => {
+    const zNorm = (seg.avgZ + sRadius) / (2 * sRadius);
+    const lightingFactor = LIGHTING_MIN + LIGHTING_RANGE * zNorm;
+    const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
+    const lw = SIDEBAR_STRAND_WIDTH * (0.5 + 0.8 * zNorm);
+
     ctx.beginPath();
     ctx.moveTo(seg.fx, seg.fy);
     ctx.lineTo(seg.tx, seg.ty);
-    const lightingFactor = LIGHTING_MIN + LIGHTING_RANGE * ((seg.avgZ + sRadius) / (2 * sRadius));
-    ctx.strokeStyle = adjustColorBrightness(seg.color, lightingFactor);
-    ctx.lineWidth = strandWidth;
+    ctx.lineWidth = lw;
     ctx.lineCap = 'round';
+    ctx.strokeStyle = shadedColor;
+    ctx.shadowColor = `rgba(0,0,0,${0.1 + 0.35 * zNorm})`;
+    ctx.shadowBlur = 2 + 5 * zNorm;
+    ctx.shadowOffsetY = 1 + 3 * zNorm;
     ctx.stroke();
   });
 

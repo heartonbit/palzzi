@@ -1,4 +1,4 @@
-import { RADIUS_EXPONENT, PITCH_RATIO, PITCH_EXPONENT } from '../braid-config.js';
+import { RADIUS_BASE, RADIUS_EXPONENT, PITCH_RATIO, PITCH_EXPONENT, PITCH_MULTIPLIER, VSTRETCH_BASE, VSTRETCH_EXPONENT } from '../braid-config.js';
 
 /**
  * Kumihimo Simulation Engine
@@ -213,7 +213,7 @@ export class KumihimoDisk {
  * @param {number} baseRadius - Base cylinder radius for 8 threads (rendering scale)
  * @returns {number} Cylinder radius in pixels
  */
-export function calcBraidRadius(nThreads, baseRadius) {
+export function calcBraidRadius(nThreads, baseRadius = RADIUS_BASE) {
   return baseRadius * Math.pow(nThreads / 8, RADIUS_EXPONENT);
 }
 
@@ -227,5 +227,16 @@ export function calcBraidRadius(nThreads, baseRadius) {
  * @returns {number} Pitch value (vertical pixels per row)
  */
 export function calcBraidPitch(nThreads, radius) {
-  return radius * PITCH_RATIO * Math.pow(nThreads / 8, PITCH_EXPONENT);
+  return radius * PITCH_RATIO * Math.pow(nThreads / 8, PITCH_EXPONENT) * PITCH_MULTIPLIER;
+}
+
+/**
+ * Calculate vertical stretch factor for braid rendering.
+ * Stretches rows vertically without affecting horizontal radius.
+ *
+ * @param {number} nThreads - Number of strands in the braid
+ * @returns {number} Vertical stretch multiplier
+ */
+export function calcBraidVStretch(nThreads) {
+  return VSTRETCH_BASE * Math.pow(nThreads / 8, VSTRETCH_EXPONENT);
 }
