@@ -712,7 +712,7 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   padding: 10px;
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
@@ -720,6 +720,10 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: calc(100vh - 180px);
+}
+
+.canvas-wrapper > #braid-3d-container {
+  min-height: 300px;
 }
 
 .zoom-controls {
@@ -1143,6 +1147,11 @@ body {
 
   .canvas-wrapper {
     max-height: 400px;
+  }
+
+  .canvas-wrapper > #braid-3d-container {
+    height: 350px;
+    flex: none;
   }
 }
 
