@@ -1,4 +1,5 @@
 import { KumihimoDisk, calcBraidRadius, calcBraidPitch, calcBraidVStretch } from './engine/kumihimo.js';
+import { Braid3DViewer, computePastelBackground } from './braid-3d-viewer.js';
 import {
   CULLING_RATIO, MAX_STEPS,
   RADIUS_BASE, RADIUS_EXPONENT,
@@ -6,7 +7,11 @@ import {
   VSTRETCH_BASE, VSTRETCH_EXPONENT,
   STRAND_WIDTH,
   LIGHTING_MIN, LIGHTING_RANGE,
+  D3_TUBE_RADIUS, D3_PITCH_MULT, D3_STEPS,
+  D3_OVER_UNDER, D3_INTERP, D3_TUBE_SEG,
+  D3_MAX_INIT_ATTEMPTS,
 } from './braid-config.js';
+import { TRANSLATIONS } from './i18n.js';
 import { KUMIHIMO_TEMPLATES } from './templates/templates.js';
 import { db } from './firebase/config.js';
 import {
@@ -25,197 +30,7 @@ import {
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
 import { initAdSense, injectSidebarAd, injectPlaybackAd } from './ads.js';
 
-// --- Multilingual i18n Translations Dictionary (doc/2_PRD) ---
-const TRANSLATIONS = {
-  ko: {
-    title: "Palzzi - 쿠미히모 2D 시뮬레이터",
-    logoTitle: "Palzzi",
-    jsonSave: "JSON 저장",
-    jsonLoad: "JSON 불러오기",
-    pngChart: "도안 (PNG)",
-    pngBraid: "완성본 (PNG)",
-    templateSelect: "템플릿 선택",
-    patternTemplate: "패턴 템플릿",
-    metaThreads: " 가닥",
-    colorCustomizer: "실 색상 커스텀",
-    colorPickerLabel: "선택된 실 색상:",
-    colorPresetsLabel: "프리셋 컬러:",
-    managePresetsBtn: "관리",
-    sectionHint: "디스크 위의 실이나 아래 리스트를 누른 뒤 색상을 변경하세요.",
-    storageShare: "저장 및 공유",
-    shareUrlBtn: "공유 링크 복사 (URL)",
-    copyUrlBtn: "URL 복사",
-    stepLabel: "PROGRESS:",
-    stepCounterPrefix: "스텝",
-    tabVirtualBraid: "3D",
-    tabPatternChart: "2D",
-    backTo3D: "← 3D",
-    tabVirtualDesc: "현재 단계까지 짜인 매듭의 회전 꼬임을 2D 원통 구조로 펼쳐서 보여줍니다.",
-    tabChartDesc: "실의 상호 치환 이동 내역을 도안 차트로 시각화합니다. (가로축: 실, 세로축: 스텝 진행)",
-    zoomLabel: "화면 배율:",
-    pitchMultLabel: "땋임 배율:",
-    strandWidthLabel: "실 굵기:",
-    settingsRenderParams: "렌더링 파라미터",
-    radiusBaseLabel: "반지름 기준:",
-    radiusExpLabel: "반지름 지수:",
-    pitchRatioLabel: "피치 비율:",
-    pitchExpLabel: "피치 지수:",
-    vstretchBaseLabel: "세로 늘림 기준:",
-    vstretchExpLabel: "세로 늘림 지수:",
-    lightingMinLabel: "조명 최소:",
-    lightingRangeLabel: "조명 범위:",
-    settingsEffects: "효과",
-    fxDepthWidth: "깊이별 굵기",
-    fxShadow: "전면 그림자",
-    fxContrast: "고대비 조명",
-    resetRenderParams: "렌더링 파라미터 초기화",
-    pitchLabel: "땋임 촘촘함:",
-    dragHint: "아래 컨트롤러를 이용해 직조하세요.",
-    popupTitle: "실 색상 선택",
-    popupNamePlaceholder: "새 색상 이름",
-    popupSaveBtn: "저장",
-    toastPresetSaved: "새 색상이 프리셋에 저장되었습니다!",
-    toastColorApplied: "실 색상이 변경되었습니다!",
-    toastShareUrl: "공유 링크가 클립보드에 복사되었습니다!",
-    toastExportJson: "JSON 파일 저장 완료!",
-    toastImportJson: "JSON 설정 불러오기 완료!",
-    toastImportError: "오류: 올바르지 않은 JSON 파일입니다.",
-    toastStepSuccess: "직조 한 단계 성공!",
-    toastStepComplete: "직조 완료!",
-    toastStopError: "오류로 정지: ",
-    toastAutoplayStart: "자동 재생 시작",
-    toastAutoplayPause: "일시정지됨",
-    guideComplete: "직조 완료! 수고하셨습니다. 도안을 저장하세요!",
-    guidePrefix: "[우측 상단] ",
-    guideSuffix: "번 슬롯 실을 아래 ",
-    guideSuffix2: "번으로 이동시켜 시작하세요.",
-    presetModalTitle: "컬러 프리셋 관리",
-    presetFormTitleAdd: "새 프리셋 추가",
-    presetFormTitleEdit: "프리셋 수정 (#",
-    presetColorLabel: "색상 선택 (Color Picker)",
-    presetNameLabel: "색상 이름",
-    presetNamePlaceholder: "예: 아쿠아 블루",
-    presetSaveBtn: "저장",
-    presetCancelEditBtn: "수정 취소",
-    presetListTitle: "프리셋 목록",
-    presetModalCloseDone: "완료 및 닫기",
-    presetDeletedMsg: "프리셋 삭제됨",
-    presetAddedMsg: "등록 완료!",
-    presetEditedMsg: "수정 완료!",
-    galleryLink: "갤러리",
-    saveGalleryBtn: "저장",
-    toastSaveGallery: "갤러리에 저장되었습니다!",
-    toastSaveGalleryError: "갤러리 저장에 실패했습니다.",
-    galleryPatternName: "내 쿠미히모 패턴",
-    savePatternPrompt: "패턴 이름을 입력하세요:",
-    settingsTitle: "설정",
-    settingsDisplay: "브레이드 표시 설정",
-    settingsStorage: "저장 및 공유",
-    exportLabel: "내보내기",
-    signInWithGoogle: "Google 로그인",
-    signOut: "로그아웃",
-    signInRequired: "갤러리에 저장하려면 먼저 로그인하세요.",
-    sidebarTitle: "패턴 갤러리",
-    sidebarLoading: "불러오는 중...",
-    sidebarThreadsUnit: "가닥",
-    sidebarStepsUnit: "단계",
-    sidebarUnknown: "알 수 없는 패턴",
-  },
-  en: {
-    title: "Palzzi - Kumihimo 2D Simulator",
-    logoTitle: "Palzzi",
-    jsonSave: "Save JSON",
-    jsonLoad: "Load JSON",
-    pngChart: "Chart (PNG)",
-    pngBraid: "Finished (PNG)",
-    templateSelect: "Select Template",
-    patternTemplate: "Pattern Template",
-    metaThreads: " Strands",
-    colorCustomizer: "Thread Colors",
-    colorPickerLabel: "Selected Color:",
-    colorPresetsLabel: "Presets:",
-    managePresetsBtn: "Manage",
-    sectionHint: "Click threads on the disk or list below, then choose a color.",
-    storageShare: "Save & Share",
-    shareUrlBtn: "Copy Share Link (URL)",
-    copyUrlBtn: "Copy URL",
-    stepLabel: "PROGRESS:",
-    stepCounterPrefix: "Step",
-    tabVirtualBraid: "3D",
-    tabPatternChart: "2D",
-    backTo3D: "← 3D",
-    tabVirtualDesc: "Displays the spiral twists of the braid up to the current step in a 2D cylindrical projection.",
-    tabChartDesc: "Visualizes thread transposition history in a pattern grid. (X-axis: thread, Y-axis: step)",
-    zoomLabel: "View Zoom:",
-    pitchMultLabel: "Pitch Multiplier:",
-    strandWidthLabel: "Strand Width:",
-    settingsRenderParams: "Rendering Parameters",
-    radiusBaseLabel: "Radius Base:",
-    radiusExpLabel: "Radius Exponent:",
-    pitchRatioLabel: "Pitch Ratio:",
-    pitchExpLabel: "Pitch Exponent:",
-    vstretchBaseLabel: "V-Stretch Base:",
-    vstretchExpLabel: "V-Stretch Exponent:",
-    lightingMinLabel: "Lighting Min:",
-    lightingRangeLabel: "Lighting Range:",
-    settingsEffects: "Effects",
-    fxDepthWidth: "Depth Width",
-    fxShadow: "Front Shadow",
-    fxContrast: "High Contrast",
-    resetRenderParams: "Reset Rendering Parameters",
-    pitchLabel: "Braid Tension:",
-    dragHint: "Use the playback controls below to braid.",
-    popupTitle: "Thread Color",
-    popupNamePlaceholder: "New color name",
-    popupSaveBtn: "Save",
-    toastPresetSaved: "New color saved to presets!",
-    toastColorApplied: "Thread color changed!",
-    toastShareUrl: "Share link copied to clipboard!",
-    toastExportJson: "JSON config exported successfully!",
-    toastImportJson: "JSON config imported successfully!",
-    toastImportError: "Error: Invalid JSON file format.",
-    toastStepSuccess: "Braid step complete!",
-    toastStepComplete: "Braiding finished!",
-    toastStopError: "Stopped due to error: ",
-    toastAutoplayStart: "Autoplay started",
-    toastAutoplayPause: "Autoplay paused",
-    guideComplete: "Braiding complete! Great job, save your pattern!",
-    guidePrefix: "[Top Right] Move ",
-    guideSuffix: " thread to bottom ",
-    guideSuffix2: " to start.",
-    presetModalTitle: "Manage Color Presets",
-    presetFormTitleAdd: "Add New Preset",
-    presetFormTitleEdit: "Edit Preset (#",
-    presetColorLabel: "Select Color (Color Picker)",
-    presetNameLabel: "Color Name",
-    presetNamePlaceholder: "e.g., Aqua Blue",
-    presetSaveBtn: "Save",
-    presetCancelEditBtn: "Cancel Edit",
-    presetListTitle: "Preset List",
-    presetModalCloseDone: "Done & Close",
-    presetDeletedMsg: "Preset deleted",
-    presetAddedMsg: "added successfully!",
-    presetEditedMsg: "updated successfully!",
-    galleryLink: "Gallery",
-    saveGalleryBtn: "Save",
-    toastSaveGallery: "Saved to gallery!",
-    toastSaveGalleryError: "Failed to save to gallery.",
-    galleryPatternName: "My Kumihimo Pattern",
-    savePatternPrompt: "Enter pattern name:",
-    settingsTitle: "Settings",
-    settingsDisplay: "Braid Display",
-    settingsStorage: "Storage & Sharing",
-    exportLabel: "Export",
-    signInWithGoogle: "Sign in with Google",
-    signOut: "Sign out",
-    signInRequired: "Please sign in first to save to gallery.",
-    sidebarTitle: "Pattern Gallery",
-    sidebarLoading: "Loading...",
-    sidebarThreadsUnit: "strands",
-    sidebarStepsUnit: "steps",
-    sidebarUnknown: "Unknown Pattern",
-  }
-};
+// TRANSLATIONS imported from ./i18n.js
 
 // Application State
 let currentLang = 'en'; // Default to English as requested
@@ -236,7 +51,7 @@ function computePatternKey(templateId, colors) {
   return Math.abs(hash).toString(36);
 }
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
-let braidZoom = 0.70; // Braid viewer scale level. Default is zoom out 70% (UX upgrade)
+let braidZoom = 0.70; // (unused — kept for settings modal compatibility)
 let braidRadius = RADIUS_BASE; // Cylinder radius (dynamically adjusted per thread count)
 let braidPitch = 3.5; // Braid weaving compactness pitch spacing
 let braidVStretch = 1.0; // Vertical stretch factor
@@ -252,9 +67,17 @@ let braidVStretchExponent = VSTRETCH_EXPONENT;
 let braidStrandWidth = STRAND_WIDTH;
 let braidLightingMin = LIGHTING_MIN;
 let braidLightingRange = LIGHTING_RANGE;
-let fxDepthWidth = true;
-let fxShadow = true;
+let fxDepthWidth = false;
+let fxShadow = false;
 let fxContrast = false;
+
+// 3D viewer settings (module scope so initBraid3DViewer can access them)
+let d3TubeRadius = D3_TUBE_RADIUS;
+let d3PitchMult = D3_PITCH_MULT;
+let d3Steps = D3_STEPS;
+let d3OverUnder = D3_OVER_UNDER;
+let d3Interp = D3_INTERP;
+let d3TubeSeg = D3_TUBE_SEG;
 
 // Auto-adjust radius and pitch based on thread count for optimal preview
 // Uses tunable parameters from settings sliders (mirrors visdev.html formulas)
@@ -331,7 +154,7 @@ const modalPresetListContainer = document.getElementById('modal-preset-list');
 const formTitle = document.getElementById('form-title');
 
 const diskCanvas = document.getElementById('disk-canvas');
-const braidCanvas = document.getElementById('braid-canvas');
+const braid3dContainer = document.getElementById('braid-3d-container');
 const chartCanvas = document.getElementById('chart-canvas');
 
 const stepCounter = document.getElementById('step-counter');
@@ -357,10 +180,54 @@ const tabContents = document.querySelectorAll('.tab-content');
 
 // Canvas Contexts
 const ctxDisk = diskCanvas.getContext('2d');
-const ctxBraid = braidCanvas.getContext('2d');
 const ctxChart = chartCanvas.getContext('2d');
 
+// 3D Braid Viewer
+let braid3dViewer = null;
+let braid3dInitPending = false;
+let braid3dInitAttempts = 0;
+
+function initBraid3DViewer() {
+  if (!braid3dContainer) return;
+  const nThreads = activeTemplate ? activeTemplate.threads : 8;
+  // Only init if colors match thread count
+  if (threadColors.length !== nThreads) return;
+  // Defer if container has no dimensions yet
+  if (braid3dContainer.clientWidth === 0 || braid3dContainer.clientHeight === 0) {
+    if (!braid3dInitPending && braid3dInitAttempts < D3_MAX_INIT_ATTEMPTS) {
+      braid3dInitPending = true;
+      braid3dInitAttempts++;
+      requestAnimationFrame(() => {
+        braid3dInitPending = false;
+        initBraid3DViewer();
+      });
+      setTimeout(() => {
+        if (!braid3dViewer) initBraid3DViewer();
+      }, 300 * braid3dInitAttempts);
+    }
+    return;
+  }
+  braid3dInitAttempts = 0;
+  if (braid3dViewer) braid3dViewer.dispose();
+  try {
+    braid3dViewer = new Braid3DViewer(braid3dContainer, {
+      nThreads,
+      steps: d3Steps,
+      tubeRadius: d3TubeRadius,
+      pitchMultiplier: d3PitchMult,
+      overUnder: d3OverUnder,
+      interp: d3Interp,
+      tubeSegments: d3TubeSeg,
+      colors: [...threadColors],
+      background: 0xf8f9fa,
+    });
+  } catch (e) {
+    console.error('[3D] viewer creation failed:', e);
+  }
+}
+
 // Gallery Sidebar DOM Elements
+const gallerySidebar = document.querySelector('.gallery-sidebar');
 const sidebarPatternList = document.getElementById('sidebar-pattern-list');
 const sidebarLoadingEl = document.getElementById('sidebar-loading');
 const sidebarSentinel = document.getElementById('sidebar-sentinel');
@@ -438,9 +305,9 @@ function init() {
   initAdSense();
   injectPlaybackAd(document.querySelector('.workspace-center'));
 
-  // Gallery sidebar: load first page & setup infinite scroll
-  loadGalleryPage();
+  // Gallery sidebar: setup scroll container first, then load first page
   setupSidebarInfiniteScroll();
+  loadGalleryPage();
 }
 
 // i18n Translation Engine Changer
@@ -615,8 +482,27 @@ function updatePlaybackUI() {
 
 function renderAll() {
   drawDisk();
-  drawBraid();
+  updateBraid3D();
   drawChart();
+}
+
+function updateBraid3D() {
+  const nThreads = activeTemplate ? activeTemplate.threads : 8;
+  if (threadColors.length !== nThreads) return;
+  if (!braid3dViewer) {
+    initBraid3DViewer();
+    return;
+  }
+  braid3dViewer.update({
+    nThreads,
+    steps: d3Steps,
+    tubeRadius: d3TubeRadius,
+    pitchMultiplier: d3PitchMult,
+    overUnder: d3OverUnder,
+    interp: d3Interp,
+    tubeSegments: d3TubeSeg,
+    colors: [...threadColors],
+  });
 }
 
 /**
@@ -877,186 +763,6 @@ function adjustColorBrightness(hex, factor) {
     return h.length === 1 ? '0' + h : h;
   };
   return '#' + toHex(r) + toHex(g) + toHex(b);
-}
-
-/**
- * Draw Virtual Finished Braided Cord preview with 3D Helix Projection (doc/6_KumihimoVisualization)
- */
-function drawBraid() {
-  const wrapper = braidCanvas.parentElement;
-  const fillHeight = wrapper ? wrapper.clientHeight - 20 : 500;
-  if (braidCanvas.height !== fillHeight) {
-    braidCanvas.height = fillHeight;
-  }
-
-  ctxBraid.clearRect(0, 0, braidCanvas.width, braidCanvas.height);
-
-  const width = braidCanvas.width;
-  const height = braidCanvas.height;
-  const cx = width / 2;
-  
-  // Background - Clean canvas (Drawn before scaling so it fills the whole canvas)
-  ctxBraid.fillStyle = '#f8f9fa';
-  ctxBraid.fillRect(0, 0, width, height);
-
-  if (disk.productColors.length <= 1) return;
-
-  // --- Start 3D Scaled Vector Drawing ---
-  ctxBraid.save();
-  // Translate horizontal center and apply zoom scale centering (UX Upgrade)
-  ctxBraid.translate(cx, 0);
-  ctxBraid.scale(braidZoom, braidZoom);
-  
-  // Cylinder Geometric Constants
-  const radius = braidRadius; // Cylinder radius (dynamically scaled per thread count)
-  const pitch = braidPitch; // Compact pitch spacing for tight weaving density (UX Upgrade)
-  const vStretch = braidVStretch; // Vertical stretch factor
-  const effectivePitch = pitch * vStretch;
-  const nThreads = disk.nThreads;
-  
-  // Draw top hanger loop or starting knot inside scale
-  ctxBraid.beginPath();
-  ctxBraid.arc(0, 30, 14, 0, 2 * Math.PI);
-  ctxBraid.fillStyle = '#8a7e72'; // Knot
-  ctxBraid.fill();
-  
-  ctxBraid.beginPath();
-  ctxBraid.moveTo(-5, 0);
-  ctxBraid.lineTo(-5, 30);
-  ctxBraid.moveTo(5, 0);
-  ctxBraid.lineTo(5, 30);
-  ctxBraid.strokeStyle = '#a69c91';
-  ctxBraid.lineWidth = 5;
-  ctxBraid.stroke();
-  
-  const maxVisibleRows = Math.floor(((height / braidZoom) - 80) / effectivePitch);
-  const totalRows = disk.productColors.length;
-  const endRowIdx = Math.min(totalRows, Math.max(1, maxVisibleRows));
-  
-  // Collect all segments across all active rows
-  const segments = [];
-  
-  for (let r = 1; r < endRowIdx; r++) {
-    const prevRow = disk.productColors[r - 1];
-    const currRow = disk.productColors[r];
-    
-    const prevY = 32 + (r - 1) * effectivePitch;
-    const currY = 32 + r * effectivePitch;
-    
-    for (let i = 0; i < nThreads; i++) {
-      const prevThread = prevRow[i];
-      const currThread = currRow[i];
-      
-      if (!prevThread || !currThread) continue;
-      
-      // We map the slot index (0 to slotsCount - 1) to 3D angles
-      const prevTheta = (prevThread.slot * 2 * Math.PI) / disk.slotsCount - Math.PI / 2;
-      const currTheta = (currThread.slot * 2 * Math.PI) / disk.slotsCount - Math.PI / 2;
-      
-      // Calculate continuous angular distance to avoid backward-spin jumps
-      let diff = currTheta - prevTheta;
-      while (diff < -Math.PI) diff += 2 * Math.PI;
-      while (diff > Math.PI) diff -= 2 * Math.PI;
-      const adjustedCurrTheta = prevTheta + diff;
-      
-      // Calculate projected positions (cx is now 0 due to translate)
-      const prevX = radius * Math.sin(prevTheta);
-      const prevZ = radius * Math.cos(prevTheta);
-      
-      const currX = radius * Math.sin(adjustedCurrTheta);
-      const currZ = radius * Math.cos(adjustedCurrTheta);
-      
-      // Only keep segments that are visible on the front of the cylinder (Z > -10 for smooth curvature)
-      if (prevZ > -radius * CULLING_RATIO || currZ > -radius * CULLING_RATIO) {
-        const avgZ = (prevZ + currZ) / 2;
-        segments.push({
-          color: currThread.color,
-          fx: prevX,
-          fy: prevY,
-          tx: currX,
-          ty: currY,
-          avgZ,
-          prevZ,
-          currZ
-        });
-      }
-    }
-  }
-
-  // Depth sort: back-to-front by avgZ
-  segments.sort((a, b) => a.avgZ - b.avgZ);
-
-  // Render sorted segments (visdev-style depth effects)
-  segments.forEach(seg => {
-    const zNorm = (seg.avgZ + radius) / (2 * radius);
-
-    let lightingFactor = braidLightingMin + braidLightingRange * zNorm;
-    if (fxContrast) {
-      lightingFactor = 0.3 + 0.9 * zNorm;
-    }
-    const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
-
-    let lw = braidStrandWidth;
-    if (fxDepthWidth) {
-      lw = braidStrandWidth * (0.5 + 0.8 * zNorm);
-    }
-
-    ctxBraid.beginPath();
-    ctxBraid.moveTo(seg.fx, seg.fy);
-    ctxBraid.lineTo(seg.tx, seg.ty);
-    ctxBraid.lineWidth = lw;
-    ctxBraid.lineCap = 'round';
-    ctxBraid.strokeStyle = shadedColor;
-
-    if (fxShadow) {
-      const sBlur = 2 + 5 * zNorm;
-      const sOffY = 1 + 3 * zNorm;
-      ctxBraid.shadowColor = `rgba(0,0,0,${0.1 + 0.35 * zNorm})`;
-      ctxBraid.shadowBlur = sBlur;
-      ctxBraid.shadowOffsetY = sOffY;
-    } else {
-      ctxBraid.shadowColor = 'rgba(0,0,0,0.18)';
-      ctxBraid.shadowBlur = 2.5;
-      ctxBraid.shadowOffsetY = 1;
-    }
-    ctxBraid.stroke();
-  });
-
-  // 3. Draw Bottom Fringe knot and loose threads hanging down
-  const bottomY = 32 + (endRowIdx - 1) * pitch;
-  ctxBraid.save();
-  ctxBraid.beginPath();
-  ctxBraid.arc(0, bottomY, 11, 0, 2 * Math.PI);
-  ctxBraid.fillStyle = '#8a7e72'; // Fringe lock
-  ctxBraid.fill();
-  
-  // Hanging threads
-  const lastRow = disk.productColors[endRowIdx - 1] || [];
-  const nHanging = lastRow.length;
-  
-  for (let i = 0; i < nHanging; i++) {
-    const thread = lastRow[i];
-    if (!thread) continue;
-    const color = thread.color;
-    const tx = -radius + (i / (nHanging - 1)) * (radius * 2);
-    
-    ctxBraid.beginPath();
-    ctxBraid.moveTo(0, bottomY + 5);
-    const controlX = (tx) * 0.4 + Math.sin(i * 1.5) * 8;
-    ctxBraid.quadraticCurveTo(controlX, bottomY + 22, tx, bottomY + 48);
-    ctxBraid.strokeStyle = color;
-    ctxBraid.lineWidth = 3.5;
-    ctxBraid.lineCap = 'round';
-    
-    ctxBraid.shadowColor = 'rgba(0,0,0,0.1)';
-    ctxBraid.shadowBlur = 2;
-    ctxBraid.shadowOffsetY = 2;
-    
-    ctxBraid.stroke();
-  }
-  ctxBraid.restore();
-  
-  ctxBraid.restore(); // Restore global scaling matrix
 }
 
 /**
@@ -1374,125 +1080,101 @@ function setupEventListeners() {
     }
   });
 
-  // Settings: Braid Zoom
-  const settingsZoom = document.getElementById('settings-braid-zoom');
-  const settingsZoomVal = document.getElementById('settings-braid-zoom-val');
-
-  function applyBraidZoom(newZoom) {
-    braidZoom = Math.max(0.4, Math.min(1.5, newZoom));
-    if (settingsZoom) settingsZoom.value = braidZoom;
-    if (settingsZoomVal) settingsZoomVal.textContent = `${Math.round(braidZoom * 100)}%`;
-    renderAll();
-  }
-
-  if (settingsZoom) {
-    settingsZoom.addEventListener('input', (e) => {
-      applyBraidZoom(parseFloat(e.target.value));
+  // Settings: 3D Tube Radius
+  const settings3DTubeRadius = document.getElementById('settings-3d-tube-radius');
+  const settings3DTubeRadiusVal = document.getElementById('settings-3d-tube-radius-val');
+  if (settings3DTubeRadius) {
+    settings3DTubeRadius.value = D3_TUBE_RADIUS;
+    if (settings3DTubeRadiusVal) settings3DTubeRadiusVal.textContent = D3_TUBE_RADIUS.toFixed(2);
+    settings3DTubeRadius.addEventListener('input', (e) => {
+      d3TubeRadius = parseFloat(e.target.value);
+      if (settings3DTubeRadiusVal) settings3DTubeRadiusVal.textContent = d3TubeRadius.toFixed(2);
+      updateBraid3D();
     });
   }
 
-  // Zoom buttons
-  const btnZoomIn = document.getElementById('btn-zoom-in');
-  const btnZoomOut = document.getElementById('btn-zoom-out');
-  if (btnZoomIn) btnZoomIn.addEventListener('click', () => applyBraidZoom(braidZoom + 0.1));
-  if (btnZoomOut) btnZoomOut.addEventListener('click', () => applyBraidZoom(braidZoom - 0.1));
-
-  // Mouse wheel zoom on braid canvas
-  if (braidCanvas) {
-    braidCanvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.05 : 0.05;
-      applyBraidZoom(braidZoom + delta);
-    }, { passive: false });
-  }
-
-  // Settings: Pitch Multiplier
-  const settingsPitchMult = document.getElementById('settings-pitch-mult');
-  const settingsPitchMultVal = document.getElementById('settings-pitch-mult-val');
-  if (settingsPitchMult) {
-    settingsPitchMult.addEventListener('input', (e) => {
-      braidPitchMultiplier = parseFloat(e.target.value);
-      if (settingsPitchMultVal) settingsPitchMultVal.textContent = braidPitchMultiplier.toFixed(1);
-      autoAdjustBraidParams();
-      renderAll();
+  // Settings: 3D Pitch Multiplier
+  const settings3DPitchMult = document.getElementById('settings-3d-pitch-mult');
+  const settings3DPitchMultVal = document.getElementById('settings-3d-pitch-mult-val');
+  if (settings3DPitchMult) {
+    settings3DPitchMult.value = D3_PITCH_MULT;
+    if (settings3DPitchMultVal) settings3DPitchMultVal.textContent = D3_PITCH_MULT.toFixed(1);
+    settings3DPitchMult.addEventListener('input', (e) => {
+      d3PitchMult = parseFloat(e.target.value);
+      if (settings3DPitchMultVal) settings3DPitchMultVal.textContent = d3PitchMult.toFixed(1);
+      updateBraid3D();
     });
   }
 
-  // Settings: Strand Width
-  const settingsStrandWidth = document.getElementById('settings-strand-width');
-  const settingsStrandWidthVal = document.getElementById('settings-strand-width-val');
-  if (settingsStrandWidth) {
-    settingsStrandWidth.addEventListener('input', (e) => {
-      braidStrandWidth = parseFloat(e.target.value);
-      if (settingsStrandWidthVal) settingsStrandWidthVal.textContent = braidStrandWidth.toFixed(1);
-      renderAll();
+  // Settings: 3D Steps
+  const settings3DSteps = document.getElementById('settings-3d-steps');
+  const settings3DStepsVal = document.getElementById('settings-3d-steps-val');
+  if (settings3DSteps) {
+    settings3DSteps.value = D3_STEPS;
+    if (settings3DStepsVal) settings3DStepsVal.textContent = D3_STEPS;
+    settings3DSteps.addEventListener('input', (e) => {
+      d3Steps = parseInt(e.target.value, 10);
+      if (settings3DStepsVal) settings3DStepsVal.textContent = d3Steps;
+      updateBraid3D();
     });
   }
 
-  // Settings: Rendering Parameter Sliders
-  const renderParamConfigs = [
-    { id: 'settings-radius-base',    valId: 'settings-radius-base-val',    setter: v => braidRadiusBase = v,       fmt: v => v.toFixed(1),   recompute: true },
-    { id: 'settings-radius-exp',     valId: 'settings-radius-exp-val',     setter: v => braidRadiusExponent = v,   fmt: v => v.toFixed(2),   recompute: true },
-    { id: 'settings-pitch-ratio',    valId: 'settings-pitch-ratio-val',    setter: v => braidPitchRatio = v,       fmt: v => v.toFixed(3),   recompute: true },
-    { id: 'settings-pitch-exp',      valId: 'settings-pitch-exp-val',      setter: v => braidPitchExponent = v,    fmt: v => v.toFixed(2),   recompute: true },
-    { id: 'settings-vstretch-base',  valId: 'settings-vstretch-base-val',  setter: v => braidVStretchBase = v,     fmt: v => v.toFixed(1),   recompute: true },
-    { id: 'settings-vstretch-exp',   valId: 'settings-vstretch-exp-val',   setter: v => braidVStretchExponent = v, fmt: v => v.toFixed(2),   recompute: true },
-    { id: 'settings-lighting-min',   valId: 'settings-lighting-min-val',   setter: v => braidLightingMin = v,      fmt: v => v.toFixed(2),   recompute: false },
-    { id: 'settings-lighting-range', valId: 'settings-lighting-range-val', setter: v => braidLightingRange = v,   fmt: v => v.toFixed(2),   recompute: false },
-  ];
+  // Settings: 3D Over/Under Height
+  const settings3DOverUnder = document.getElementById('settings-3d-overunder');
+  const settings3DOverUnderVal = document.getElementById('settings-3d-overunder-val');
+  if (settings3DOverUnder) {
+    settings3DOverUnder.value = D3_OVER_UNDER;
+    if (settings3DOverUnderVal) settings3DOverUnderVal.textContent = D3_OVER_UNDER.toFixed(2);
+    settings3DOverUnder.addEventListener('input', (e) => {
+      d3OverUnder = parseFloat(e.target.value);
+      if (settings3DOverUnderVal) settings3DOverUnderVal.textContent = d3OverUnder.toFixed(2);
+      updateBraid3D();
+    });
+  }
 
-  renderParamConfigs.forEach(cfg => {
-    const slider = document.getElementById(cfg.id);
-    const valSpan = document.getElementById(cfg.valId);
-    if (slider) {
-      slider.addEventListener('input', (e) => {
-        const v = parseFloat(e.target.value);
-        cfg.setter(v);
-        if (valSpan) valSpan.textContent = cfg.fmt(v);
-        if (cfg.recompute) autoAdjustBraidParams();
-        renderAll();
-      });
-    }
-  });
+  // Settings: 3D Interpolation
+  const settings3DInterp = document.getElementById('settings-3d-interp');
+  const settings3DInterpVal = document.getElementById('settings-3d-interp-val');
+  if (settings3DInterp) {
+    settings3DInterp.value = D3_INTERP;
+    if (settings3DInterpVal) settings3DInterpVal.textContent = D3_INTERP;
+    settings3DInterp.addEventListener('input', (e) => {
+      d3Interp = parseInt(e.target.value, 10);
+      if (settings3DInterpVal) settings3DInterpVal.textContent = d3Interp;
+      updateBraid3D();
+    });
+  }
 
-  // Settings: Effect Checkboxes
-  const fxDW = document.getElementById('fx-depth-width');
-  if (fxDW) fxDW.addEventListener('change', (e) => { fxDepthWidth = e.target.checked; renderAll(); });
-  const fxS = document.getElementById('fx-shadow');
-  if (fxS) fxS.addEventListener('change', (e) => { fxShadow = e.target.checked; renderAll(); });
-  const fxC = document.getElementById('fx-contrast');
-  if (fxC) fxC.addEventListener('change', (e) => { fxContrast = e.target.checked; renderAll(); });
+  // Settings: 3D Tube Segments
+  const settings3DTubeSeg = document.getElementById('settings-3d-tube-seg');
+  const settings3DTubeSegVal = document.getElementById('settings-3d-tube-seg-val');
+  if (settings3DTubeSeg) {
+    settings3DTubeSeg.value = D3_TUBE_SEG;
+    if (settings3DTubeSegVal) settings3DTubeSegVal.textContent = D3_TUBE_SEG;
+    settings3DTubeSeg.addEventListener('input', (e) => {
+      d3TubeSeg = parseInt(e.target.value, 10);
+      if (settings3DTubeSegVal) settings3DTubeSegVal.textContent = d3TubeSeg;
+      updateBraid3D();
+    });
+  }
 
-  // Settings: Reset Rendering Parameters
-  const btnResetRender = document.getElementById('btn-reset-render');
-  if (btnResetRender) {
-    btnResetRender.addEventListener('click', () => {
-      braidRadiusBase = RADIUS_BASE;
-      braidRadiusExponent = RADIUS_EXPONENT;
-      braidPitchRatio = PITCH_RATIO;
-      braidPitchExponent = PITCH_EXPONENT;
-      braidPitchMultiplier = PITCH_MULTIPLIER;
-      braidVStretchBase = VSTRETCH_BASE;
-      braidVStretchExponent = VSTRETCH_EXPONENT;
-      braidStrandWidth = STRAND_WIDTH;
-      braidLightingMin = LIGHTING_MIN;
-      braidLightingRange = LIGHTING_RANGE;
-      fxDepthWidth = true;
-      fxShadow = true;
-      fxContrast = false;
-
-      // Sync all sliders to default values
+  // Settings: Reset 3D Rendering Parameters
+  const btnReset3DRender = document.getElementById('btn-reset-3d-render');
+  if (btnReset3DRender) {
+    btnReset3DRender.addEventListener('click', () => {
+      d3TubeRadius = D3_TUBE_RADIUS;
+      d3PitchMult = D3_PITCH_MULT;
+      d3Steps = D3_STEPS;
+      d3OverUnder = D3_OVER_UNDER;
+      d3Interp = D3_INTERP;
+      d3TubeSeg = D3_TUBE_SEG;
       const syncMap = [
-        ['settings-radius-base', 'settings-radius-base-val', RADIUS_BASE, v => v.toFixed(1)],
-        ['settings-radius-exp', 'settings-radius-exp-val', RADIUS_EXPONENT, v => v.toFixed(2)],
-        ['settings-pitch-ratio', 'settings-pitch-ratio-val', PITCH_RATIO, v => v.toFixed(3)],
-        ['settings-pitch-exp', 'settings-pitch-exp-val', PITCH_EXPONENT, v => v.toFixed(2)],
-        ['settings-vstretch-base', 'settings-vstretch-base-val', VSTRETCH_BASE, v => v.toFixed(1)],
-        ['settings-vstretch-exp', 'settings-vstretch-exp-val', VSTRETCH_EXPONENT, v => v.toFixed(2)],
-        ['settings-lighting-min', 'settings-lighting-min-val', LIGHTING_MIN, v => v.toFixed(2)],
-        ['settings-lighting-range', 'settings-lighting-range-val', LIGHTING_RANGE, v => v.toFixed(2)],
-        ['settings-pitch-mult', 'settings-pitch-mult-val', PITCH_MULTIPLIER, v => v.toFixed(1)],
-        ['settings-strand-width', 'settings-strand-width-val', STRAND_WIDTH, v => v.toFixed(1)],
+        ['settings-3d-tube-radius', 'settings-3d-tube-radius-val', D3_TUBE_RADIUS, v => v.toFixed(2)],
+        ['settings-3d-pitch-mult', 'settings-3d-pitch-mult-val', D3_PITCH_MULT, v => v.toFixed(1)],
+        ['settings-3d-steps', 'settings-3d-steps-val', D3_STEPS, v => String(v)],
+        ['settings-3d-overunder', 'settings-3d-overunder-val', D3_OVER_UNDER, v => v.toFixed(2)],
+        ['settings-3d-interp', 'settings-3d-interp-val', D3_INTERP, v => String(v)],
+        ['settings-3d-tube-seg', 'settings-3d-tube-seg-val', D3_TUBE_SEG, v => String(v)],
       ];
       syncMap.forEach(([sid, vid, val, fmt]) => {
         const s = document.getElementById(sid);
@@ -1500,12 +1182,7 @@ function setupEventListeners() {
         if (s) s.value = val;
         if (v) v.textContent = fmt(val);
       });
-      if (fxDW) fxDW.checked = true;
-      if (fxS) fxS.checked = true;
-      if (fxC) fxC.checked = false;
-
-      autoAdjustBraidParams();
-      renderAll();
+      updateBraid3D();
     });
   }
 
@@ -1640,6 +1317,19 @@ function setupEventListeners() {
       }
       const patternName = userInput.trim() || defaultName;
 
+      // Capture 3D braid snapshot for gallery/sidebar preview
+      let snapshotBase64 = '';
+      if (braid3dViewer && braid3dViewer.braidGroup) {
+        // Wait one frame so the latest build is rendered
+        await new Promise(r => requestAnimationFrame(r));
+        // Temporarily set pastel background for snapshot
+        const origBg = braid3dViewer.scene.background.clone();
+        const pastelBg = computePastelBackground(threadColors);
+        braid3dViewer.scene.background = new THREE.Color(pastelBg);
+        snapshotBase64 = braid3dViewer.captureSnapshot(320, 200, 25, 15) || '';
+        braid3dViewer.scene.background = origBg;
+      }
+
       await addDoc(collection(db, 'patterns'), {
         templateId: activeTemplate.id,
         patternKey: computePatternKey(activeTemplate.id, threadColors),
@@ -1649,6 +1339,7 @@ function setupEventListeners() {
         nThreads: disk.nThreads,
         maxSteps: MAX_STEPS,
         colors: [...threadColors],
+        snapshotBase64,
         ownerUid: currentUser.uid,
         ownerName: currentUser.displayName || currentUser.email || 'Anonymous',
         ownerPhoto: currentUser.photoURL || '',
@@ -1720,8 +1411,11 @@ function setupEventListeners() {
   });
 
   btnExportPngBraid.addEventListener('click', () => {
+    if (!braid3dViewer) return;
+    // Force a render frame so the drawing buffer is fresh
+    braid3dViewer.renderer.render(braid3dViewer.scene, braid3dViewer.camera);
     const a = document.createElement('a');
-    a.href = braidCanvas.toDataURL('image/png');
+    a.href = braid3dViewer.renderer.domElement.toDataURL('image/png');
     a.download = `palzzi-finished-${activeTemplate.id}-step${currentStep}.png`;
     a.click();
     showToast(currentLang === 'ko' ? "완성 이미지 PNG 다운로드 완료!" : "Finished braid PNG downloaded!");
@@ -1752,6 +1446,12 @@ function setupEventListeners() {
 
   if (btnShowChart) btnShowChart.addEventListener('click', () => switchView('tab-chart'));
   if (btnBackTo3d) btnBackTo3d.addEventListener('click', () => switchView('tab-finished'));
+
+  // 7. Zoom In/Out for 3D viewer
+  const btnZoomIn = document.getElementById('btn-zoom-in');
+  const btnZoomOut = document.getElementById('btn-zoom-out');
+  if (btnZoomIn) btnZoomIn.addEventListener('click', () => { braid3dViewer?.zoom(0.8); });
+  if (btnZoomOut) btnZoomOut.addEventListener('click', () => { braid3dViewer?.zoom(1.25); });
 }
 
 function onDiskClick(e) {
@@ -2092,11 +1792,20 @@ function checkUrlParams() {
 }
 
 // Run Initial setup on page load
-window.addEventListener('DOMContentLoaded', init);
+window.addEventListener('DOMContentLoaded', () => {
+  init();
+  // Fallback: if Braid3DViewer wasn't initialized (e.g. container had zero dims
+  // during the synchronous init chain), retry after layout settles.
+  setTimeout(() => {
+    if (!braid3dViewer && braid3dContainer) {
+      initBraid3DViewer();
+    }
+  }, 800);
+});
 
 // --- Gallery Sidebar: Cursor-based Pagination & Infinite Scroll ---\
 
-const SIDEBAR_PAGE_SIZE = 20;
+const SIDEBAR_PAGE_SIZE = 5;
 
 async function loadGalleryPage() {
   if (sidebarLoadingMore || !sidebarHasMore) return;
@@ -2138,6 +1847,11 @@ async function loadGalleryPage() {
 
   sidebarLoadingMore = false;
   if (sidebarLoadingEl) sidebarLoadingEl.classList.add('hidden');
+
+  // If content doesn't overflow yet, load more to fill the viewport
+  if (gallerySidebar && gallerySidebar._checkOverflow) {
+    requestAnimationFrame(() => gallerySidebar._checkOverflow());
+  }
 }
 
 function renderSidebarCard(pattern) {
@@ -2153,7 +1867,9 @@ function renderSidebarCard(pattern) {
   const threadsLabel = pattern.nThreads ? `${pattern.nThreads}${t.sidebarThreadsUnit}` : '-';
 
   card.innerHTML = `
-    <div class="sidebar-card-preview"><canvas width="56" height="56"></canvas></div>
+    <div class="sidebar-card-preview">${pattern.snapshotBase64
+      ? `<img src="${pattern.snapshotBase64}" alt="${patternName}" class="sidebar-card-snapshot" width="56" height="56">`
+      : `<canvas width="56" height="56"></canvas>`}</div>
     <div class="sidebar-card-info">
       <div class="sidebar-card-name">${patternName}</div>
       <div class="sidebar-card-meta">${threadsLabel}</div>
@@ -2161,8 +1877,11 @@ function renderSidebarCard(pattern) {
     </div>
   `;
 
-  const canvas = card.querySelector('canvas');
-  drawSidebarBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120);
+  // Render braid preview on canvas only if no snapshot available
+  if (!pattern.snapshotBase64) {
+    const canvas = card.querySelector('canvas');
+    drawSidebarBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120);
+  }
 
   card.addEventListener('click', () => {
     sidebarActivePatternId = pattern.id;
@@ -2298,15 +2017,39 @@ function loadPatternToSimulator(pattern) {
 }
 
 function setupSidebarInfiniteScroll() {
-  if (!sidebarSentinel) return;
+  if (!gallerySidebar) return;
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && sidebarHasMore && !sidebarLoadingMore) {
+  // Explicitly set sidebar height so overflow-y: auto works
+  function updateSidebarHeight() {
+    const topBar = document.querySelector('.top-bar');
+    const topBarH = topBar ? topBar.offsetHeight : 0;
+    gallerySidebar.style.height = (window.innerHeight - topBarH) + 'px';
+  }
+  updateSidebarHeight();
+  window.addEventListener('resize', updateSidebarHeight);
+
+  // After each load, check if we need more items to fill the viewport
+  gallerySidebar._checkOverflow = () => {
+    if (sidebarLoadingMore || !sidebarHasMore) return;
+    const { scrollHeight, clientHeight } = gallerySidebar;
+    if (scrollHeight <= clientHeight) {
+      // Content doesn't overflow yet — load more
+      loadGalleryPage();
+    }
+  };
+
+  // Scroll-based infinite scroll
+  let scrollTicking = false;
+  gallerySidebar.addEventListener('scroll', () => {
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      scrollTicking = false;
+      if (sidebarLoadingMore || !sidebarHasMore) return;
+      const { scrollTop, scrollHeight, clientHeight } = gallerySidebar;
+      if (scrollHeight > clientHeight && scrollTop + clientHeight >= scrollHeight - 100) {
         loadGalleryPage();
       }
     });
-  }, { root: sidebarPatternList, threshold: 0.1 });
-
-  observer.observe(sidebarSentinel);
+  });
 }

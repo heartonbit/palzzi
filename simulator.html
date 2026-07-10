@@ -144,12 +144,12 @@
         <div class="view-contents">
           <!-- 3D Braid View -->
           <div id="tab-finished" class="tab-content active">
-            <div class="canvas-wrapper">
-              <canvas id="braid-canvas" width="320" height="500"></canvas>
+            <div class="canvas-wrapper" style="position:relative;min-height:0;align-items:stretch;">
+              <div id="braid-3d-container" style="width:100%;flex:1;min-height:0;"></div>
               <div class="zoom-controls">
                 <button id="btn-show-chart" class="zoom-btn view-switch-btn" data-i18n="tabPatternChart" title="2D 도안 보기">2D</button>
-                <button id="btn-zoom-in" class="zoom-btn" title="줌인">+</button>
-                <button id="btn-zoom-out" class="zoom-btn" title="줌아웃">−</button>
+                <button id="btn-zoom-in" class="zoom-btn" title="Zoom In">+</button>
+                <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out">−</button>
               </div>
             </div>
           </div>
@@ -176,119 +176,61 @@
       </div>
       <div class="modal-body">
 
-        <!-- Braid Display Settings -->
+        <!-- 3D Braid Display Settings -->
         <section class="settings-section">
-          <h4 data-i18n="settingsDisplay"><i class="fa-solid fa-eye"></i> 브레이드 표시 설정</h4>
+          <h4 data-i18n="settings3DDisplay"><i class="fa-solid fa-cube"></i> 3D 브레이드 표시</h4>
           <div class="settings-row">
-            <label for="settings-braid-zoom" data-i18n="zoomLabel">화면 배율:</label>
+            <label for="settings-3d-tube-radius" data-i18n="tubeRadiusLabel">실 굵기:</label>
             <div class="settings-slider-row">
-              <input type="range" id="settings-braid-zoom" min="0.4" max="1.5" step="0.05" value="0.70" class="zoom-slider">
-              <span id="settings-braid-zoom-val" class="zoom-value">70%</span>
+              <input type="range" id="settings-3d-tube-radius" min="0.03" max="0.25" step="0.01" value="0.10" class="zoom-slider">
+              <span id="settings-3d-tube-radius-val" class="zoom-value">0.10</span>
             </div>
           </div>
           <div class="settings-row">
-            <label for="settings-pitch-mult" data-i18n="pitchMultLabel">땋임 배율:</label>
+            <label for="settings-3d-pitch-mult" data-i18n="pitchMult3DLabel">땋임 촘함:</label>
             <div class="settings-slider-row">
-              <input type="range" id="settings-pitch-mult" min="0.1" max="10.0" step="0.1" value="3.0" class="zoom-slider">
-              <span id="settings-pitch-mult-val" class="zoom-value">3.0</span>
+              <input type="range" id="settings-3d-pitch-mult" min="0.5" max="3.0" step="0.1" value="1.8" class="zoom-slider">
+              <span id="settings-3d-pitch-mult-val" class="zoom-value">1.8</span>
             </div>
           </div>
           <div class="settings-row">
-            <label for="settings-strand-width" data-i18n="strandWidthLabel">실 굵기:</label>
+            <label for="settings-3d-steps" data-i18n="steps3DLabel">표시 스 수:</label>
             <div class="settings-slider-row">
-              <input type="range" id="settings-strand-width" min="1" max="15" step="0.5" value="8" class="zoom-slider">
-              <span id="settings-strand-width-val" class="zoom-value">8.0</span>
+              <input type="range" id="settings-3d-steps" min="20" max="500" step="10" value="200" class="zoom-slider">
+              <span id="settings-3d-steps-val" class="zoom-value">200</span>
             </div>
           </div>
         </section>
 
-        <!-- Rendering Parameters -->
+        <!-- 3D Smoothness Settings -->
         <section class="settings-section">
-          <h4 data-i18n="settingsRenderParams"><i class="fa-solid fa-sliders"></i> 렌더링 파라미터</h4>
+          <h4 data-i18n="settings3DSmooth"><i class="fa-solid fa-wave-square"></i> 부드러움</h4>
           <div class="settings-row">
-            <label for="settings-radius-base" data-i18n="radiusBaseLabel">반지름 기준:</label>
+            <label for="settings-3d-overunder" data-i18n="overUnderLabel">위아래 높이:</label>
             <div class="settings-slider-row">
-              <input type="range" id="settings-radius-base" min="5" max="40" step="0.5" value="11.5" class="zoom-slider">
-              <span id="settings-radius-base-val" class="zoom-value">11.5</span>
+              <input type="range" id="settings-3d-overunder" min="0" max="0.5" step="0.05" value="0.25" class="zoom-slider">
+              <span id="settings-3d-overunder-val" class="zoom-value">0.25</span>
             </div>
           </div>
           <div class="settings-row">
-            <label for="settings-radius-exp" data-i18n="radiusExpLabel">반지름 지수:</label>
+            <label for="settings-3d-interp" data-i18n="interpLabel">곡선 보간:</label>
             <div class="settings-slider-row">
-              <input type="range" id="settings-radius-exp" min="0.1" max="1.5" step="0.05" value="0.6" class="zoom-slider">
-              <span id="settings-radius-exp-val" class="zoom-value">0.60</span>
+              <input type="range" id="settings-3d-interp" min="2" max="16" step="1" value="8" class="zoom-slider">
+              <span id="settings-3d-interp-val" class="zoom-value">8</span>
             </div>
           </div>
           <div class="settings-row">
-            <label for="settings-pitch-ratio" data-i18n="pitchRatioLabel">피치 비율:</label>
+            <label for="settings-3d-tube-seg" data-i18n="tubeSegLabel">튜브 세그먼트:</label>
             <div class="settings-slider-row">
-              <input type="range" id="settings-pitch-ratio" min="0.05" max="0.3" step="0.001" value="0.1" class="zoom-slider">
-              <span id="settings-pitch-ratio-val" class="zoom-value">0.100</span>
+              <input type="range" id="settings-3d-tube-seg" min="6" max="24" step="1" value="12" class="zoom-slider">
+              <span id="settings-3d-tube-seg-val" class="zoom-value">12</span>
             </div>
-          </div>
-          <div class="settings-row">
-            <label for="settings-pitch-exp" data-i18n="pitchExpLabel">피치 지수:</label>
-            <div class="settings-slider-row">
-              <input type="range" id="settings-pitch-exp" min="0.1" max="1.5" step="0.05" value="0.2" class="zoom-slider">
-              <span id="settings-pitch-exp-val" class="zoom-value">0.20</span>
-            </div>
-          </div>
-          <div class="settings-row">
-            <label for="settings-vstretch-base" data-i18n="vstretchBaseLabel">세로 늘림 기준:</label>
-            <div class="settings-slider-row">
-              <input type="range" id="settings-vstretch-base" min="0.5" max="5.0" step="0.1" value="0.8" class="zoom-slider">
-              <span id="settings-vstretch-base-val" class="zoom-value">0.8</span>
-            </div>
-          </div>
-          <div class="settings-row">
-            <label for="settings-vstretch-exp" data-i18n="vstretchExpLabel">세로 늘림 지수:</label>
-            <div class="settings-slider-row">
-              <input type="range" id="settings-vstretch-exp" min="-1.0" max="1.5" step="0.05" value="0.2" class="zoom-slider">
-              <span id="settings-vstretch-exp-val" class="zoom-value">0.20</span>
-            </div>
-          </div>
-          <div class="settings-row">
-            <label for="settings-lighting-min" data-i18n="lightingMinLabel">조명 최소:</label>
-            <div class="settings-slider-row">
-              <input type="range" id="settings-lighting-min" min="0.3" max="0.7" step="0.05" value="0.52" class="zoom-slider">
-              <span id="settings-lighting-min-val" class="zoom-value">0.52</span>
-            </div>
-          </div>
-          <div class="settings-row">
-            <label for="settings-lighting-range" data-i18n="lightingRangeLabel">조명 범위:</label>
-            <div class="settings-slider-row">
-              <input type="range" id="settings-lighting-range" min="0.3" max="0.6" step="0.05" value="0.48" class="zoom-slider">
-              <span id="settings-lighting-range-val" class="zoom-value">0.48</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- Visual Effects -->
-        <section class="settings-section">
-          <h4 data-i18n="settingsEffects"><i class="fa-solid fa-wand-magic-sparkles"></i> 효과</h4>
-          <div class="settings-checkbox-row">
-            <label>
-              <input type="checkbox" id="fx-depth-width" checked>
-              <span data-i18n="fxDepthWidth">깊이별 굵기</span>
-            </label>
-          </div>
-          <div class="settings-checkbox-row">
-            <label>
-              <input type="checkbox" id="fx-shadow" checked>
-              <span data-i18n="fxShadow">전면 그림자</span>
-            </label>
-          </div>
-          <div class="settings-checkbox-row">
-            <label>
-              <input type="checkbox" id="fx-contrast">
-              <span data-i18n="fxContrast">고대비 조명</span>
-            </label>
           </div>
         </section>
 
         <!-- Reset -->
         <section class="settings-section">
-          <button id="btn-reset-render" class="btn btn-secondary w-100" data-i18n="resetRenderParams">렌더링 파라미터 초기화</button>
+          <button id="btn-reset-3d-render" class="btn btn-secondary w-100" data-i18n="reset3DRenderParams">3D 렌더링 초기화</button>
         </section>
 
 

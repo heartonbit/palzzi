@@ -16,67 +16,8 @@ import {
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
 import { KumihimoDisk, calcBraidRadius, calcBraidPitch, calcBraidVStretch } from './engine/kumihimo.js';
 import { BRAID_CONTEXTS, CULLING_RATIO, LIGHTING_MIN, LIGHTING_RANGE, RADIUS_BASE } from './braid-config.js';
+import { TRANSLATIONS } from './i18n.js';
 import { initAdSense, injectGalleryBannerAd } from './ads.js';
-
-// --- i18n Translations (subset for gallery page) ---
-const GALLERY_TRANSLATIONS = {
-  ko: {
-    galleryTitle: "Palzzi - 쿠미히모 패턴 갤러리",
-    logoTitle: "Palzzi",
-    backToSimulator: "시뮬레이터로",
-    galleryHeading: "쿠미히모 패턴 갤러리",
-    gallerySubtitle: "저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.",
-    loadingPatterns: "패턴을 불러오는 중...",
-    noPatterns: "아직 저장된 패턴이 없습니다.",
-    createFirst: "첫 패턴 만들기",
-    detailTitle: "패턴 상세 정보",
-    metaPatternName: "패턴 이름",
-    metaThreads: "가닥 수",
-    metaCreatedAt: "생성일",
-    colorSwatches: "사용 색상",
-    loadToSimulator: "시뮬레이터에서 열기",
-    deletePattern: "패턴 삭제",
-    confirmDelete: "이 패턴을 삭제하시겠습니까?",
-    deleteSuccess: "패턴이 삭제되었습니다.",
-    deleteFailed: "삭제에 실패했습니다.",
-    threadsUnit: "가닥",
-    metaCreator: "만든 이",
-    unknownPattern: "알 수 없는 패턴",
-    unknownDate: "날짜 없음",
-    signInWithGoogle: "Google 로그인",
-    signOut: "로그아웃",
-    signInRequired: "패턴을 저장하려면 로그인하세요.",
-    signInToSave: "로그인 후 저장 가능",
-  },
-  en: {
-    galleryTitle: "Palzzi - Kumihimo Pattern Gallery",
-    logoTitle: "Palzzi",
-    backToSimulator: "To Simulator",
-    galleryHeading: "Kumihimo Pattern Gallery",
-    gallerySubtitle: "Browse Kumihimo patterns. Click a card to see details.",
-    loadingPatterns: "Loading patterns...",
-    noPatterns: "No patterns saved yet.",
-    createFirst: "Create First Pattern",
-    detailTitle: "Pattern Details",
-    metaPatternName: "Pattern Name",
-    metaThreads: "Threads",
-    metaCreatedAt: "Created At",
-    colorSwatches: "Colors Used",
-    loadToSimulator: "Open in Simulator",
-    deletePattern: "Delete Pattern",
-    confirmDelete: "Are you sure you want to delete this pattern?",
-    deleteSuccess: "Pattern deleted successfully.",
-    deleteFailed: "Failed to delete pattern.",
-    threadsUnit: "strands",
-    metaCreator: "Creator",
-    unknownPattern: "Unknown Pattern",
-    unknownDate: "No date",
-    signInWithGoogle: "Sign in with Google",
-    signOut: "Sign out",
-    signInRequired: "Please sign in to save patterns.",
-    signInToSave: "Sign in to save",
-  }
-};
 
 let currentLang = 'en';
 let patterns = [];
@@ -111,7 +52,7 @@ const GOOGLE_ICON_SVG = `<svg class="google-icon" viewBox="0 0 48 48"><path fill
 
 function updateAuthUI(user) {
   currentUser = user;
-  const t = GALLERY_TRANSLATIONS[currentLang];
+  const t = TRANSLATIONS[currentLang];
 
   if (user) {
     authArea.innerHTML = `
@@ -181,7 +122,7 @@ function setLanguage(lang) {
   // Translate all elements with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    const t = GALLERY_TRANSLATIONS[lang];
+    const t = TRANSLATIONS[lang];
     if (t && t[key]) {
       // Handle buttons that may contain <i> icons
       const icon = el.querySelector('i');
@@ -255,7 +196,7 @@ function renderGallery() {
     card.className = 'pattern-card';
     card.dataset.id = pattern.id;
 
-    const t = GALLERY_TRANSLATIONS[currentLang];
+    const t = TRANSLATIONS[currentLang];
     const patternName = currentLang === 'ko'
       ? (pattern.nameKo || pattern.templateName || t.unknownPattern)
       : (pattern.nameEn || pattern.templateName || t.unknownPattern);
@@ -266,7 +207,9 @@ function renderGallery() {
 
     card.innerHTML = `
       <div class="card-preview">
-        <canvas width="320" height="200"></canvas>
+        ${pattern.snapshotBase64
+          ? `<img src="${pattern.snapshotBase64}" alt="${patternName}" class="card-snapshot" width="320" height="200">`
+          : `<canvas width="320" height="200"></canvas>`}
       </div>
       <div class="card-body">
         <div class="card-meta">
@@ -284,9 +227,11 @@ function renderGallery() {
       </div>
     `;
 
-    // Render braid preview on card canvas (diagonal tilt)
-    const canvas = card.querySelector('canvas');
-    drawBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120, -25);
+    // Render braid preview on card canvas only if no snapshot available
+    if (!pattern.snapshotBase64) {
+      const canvas = card.querySelector('canvas');
+      drawBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120, -25);
+    }
 
     card.addEventListener('click', () => {
       selectedPattern = pattern;
@@ -451,7 +396,7 @@ function adjustColorBrightness(hex, factor) {
 
 // --- Detail Panel ---
 function showDetail(pattern) {
-  const t = GALLERY_TRANSLATIONS[currentLang];
+  const t = TRANSLATIONS[currentLang];
 
   // Update gallery grid selection
   document.querySelectorAll('.pattern-card').forEach(card => {
@@ -479,8 +424,22 @@ function showDetail(pattern) {
     detailCreated.textContent = t.unknownDate;
   }
 
-  // Draw detail braid preview (diagonal tilt)
-  drawBraidPreview(detailCanvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120, -25);
+  // Draw detail braid preview — use snapshot if available, else 2D fallback
+  if (pattern.snapshotBase64) {
+    detailCanvas.style.display = 'none';
+    let img = detailPanel.querySelector('.detail-snapshot');
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'detail-snapshot';
+      detailCanvas.parentElement.insertBefore(img, detailCanvas);
+    }
+    img.src = pattern.snapshotBase64;
+  } else {
+    detailCanvas.style.display = '';
+    const img = detailPanel.querySelector('.detail-snapshot');
+    if (img) img.remove();
+    drawBraidPreview(detailCanvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120, -25);
+  }
 
   // Render color swatches
   detailColorList.innerHTML = '';
@@ -552,12 +511,12 @@ function setupEventListeners() {
   btnDeletePattern.addEventListener('click', async () => {
     if (!selectedPattern) return;
     if (!currentUser) {
-      const t = GALLERY_TRANSLATIONS[currentLang];
+      const t = TRANSLATIONS[currentLang];
       showToast(t.signInRequired);
       return;
     }
 
-    const t = GALLERY_TRANSLATIONS[currentLang];
+    const t = TRANSLATIONS[currentLang];
     if (!confirm(t.confirmDelete)) return;
 
     try {

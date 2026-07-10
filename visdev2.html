@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Braid Visualization</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #eee;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #braid-3d-container {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    #braid-3d-container canvas {
+      display: block;
+      width: 100%; height: 100%;
+    }
+    .controls-panel {
+      position: absolute;
+      top: 12px; left: 12px;
+      background: rgba(22, 33, 62, 0.92);
+      border-radius: 10px;
+      padding: 14px 18px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      backdrop-filter: blur(8px);
+      max-width: 600px;
+    }
+    .controls-panel .cg {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .controls-panel label {
+      font-size: 0.7rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .controls-panel select,
+    .controls-panel input[type="number"] {
+      width: 80px;
+      padding: 5px 8px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: #0f3460;
+      color: #fff;
+      font-size: 0.85rem;
+    }
+    .controls-panel button {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 4px;
+      background: #4ecca3;
+      color: #1a1a2e;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.8rem;
+      align-self: flex-end;
+    }
+    .controls-panel button:hover { background: #45b393; }
+    .info-bar {
+      position: absolute;
+      bottom: 12px; left: 12px;
+      background: rgba(22, 33, 62, 0.85);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.75rem;
+      color: #4ecca3;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+<body>
+  <div id="braid-3d-container"></div>
+
+  <div class="controls-panel">
+    <div class="cg">
+      <label>Threads</label>
+      <select id="ctrl-threads">
+        <option value="8">8</option>
+        <option value="12">12</option>
+        <option value="16" selected>16</option>
+        <option value="20">20</option>
+        <option value="24">24</option>
+        <option value="28">28</option>
+        <option value="32">32</option>
+      </select>
+    </div>
+    <div class="cg">
+      <label>Steps</label>
+      <input type="number" id="ctrl-steps" min="10" max="500" step="10" value="200">
+    </div>
+    <div class="cg">
+      <label>Tube Radius</label>
+      <input type="number" id="ctrl-tube" min="0.05" max="1.0" step="0.05" value="0.10">
+    </div>
+    <div class="cg">
+      <label>Color Mode</label>
+      <select id="ctrl-colors">
+        <option value="pairs">Pairs</option>
+        <option value="multi" selected>Multi</option>
+        <option value="two">Two-tone</option>
+      </select>
+    </div>
+    <button id="ctrl-regen">Regenerate</button>
+  </div>
+
+  <div class="info-bar" id="info-bar"></div>
+
+  <script type="module">
+    import { Braid3DViewer } from './src/braid-3d-viewer.js';
+
+    const container = document.getElementById('braid-3d-container');
+    const infoBar = document.getElementById('info-bar');
+    const threadsSel = document.getElementById('ctrl-threads');
+    const stepsInput = document.getElementById('ctrl-steps');
+    const tubeInput = document.getElementById('ctrl-tube');
+    const colorsSel = document.getElementById('ctrl-colors');
+    const regenBtn = document.getElementById('ctrl-regen');
+
+    const viewer = new Braid3DViewer(container, {
+      nThreads: parseInt(threadsSel.value),
+      steps: parseInt(stepsInput.value),
+      tubeRadius: parseFloat(tubeInput.value),
+      colors: colorsSel.value,
+    });
+
+    function rebuild() {
+      viewer.update({
+        nThreads: parseInt(threadsSel.value),
+        steps: parseInt(stepsInput.value),
+        tubeRadius: parseFloat(tubeInput.value),
+        colors: colorsSel.value,
+      });
+      const o = viewer.opts;
+      infoBar.textContent = `${o.nThreads} threads · ${o.steps} steps · tube ${o.tubeRadius}`;
+    }
+
+    regenBtn.addEventListener('click', rebuild);
+    threadsSel.addEventListener('change', rebuild);
+    stepsInput.addEventListener('change', rebuild);
+    tubeInput.addEventListener('change', rebuild);
+    colorsSel.addEventListener('change', rebuild);
+
+    rebuild();
+  </script>
+</body>
+</html>

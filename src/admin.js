@@ -4,9 +4,14 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
-  doc
+  doc,
+  updateDoc,
+  deleteField
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
+import { Braid3DViewer } from './braid-3d-viewer.js';
+import { KUMIHIMO_TEMPLATES } from './templates/templates.js';
+import { D3_STEPS } from './braid-config.js';
 
 let currentUser = null;
 let userIsAdmin = false;
@@ -167,6 +172,26 @@ function renderAdminPanel() {
         : `<ul class="user-list">${nonAdminOwners.map(renderOwnerRow).join('')}</ul>`
       }
     </div>
+
+    <div class="admin-card">
+      <h2><i class="fa-solid fa-camera"></i> 3D 스냅샷 생성</h2>
+      <p class="section-desc">스냅샷이 없는 패턴의 3D 미리보기 이미지를 자동 생성합니다.</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <button id="btn-generate-snapshots" class="btn-snapshot" style="border:none;padding:10px 20px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;background:var(--primary-color);color:white;display:flex;align-items:center;gap:4px;">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> 누락 스냅샷 생성
+        </button>
+        <button id="btn-regenerate-snapshots" class="btn-snapshot" style="border:none;padding:10px 20px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;background:#e76f51;color:white;display:flex;align-items:center;gap:4px;">
+          <i class="fa-solid fa-rotate"></i> 모든 스냅샷 재생성
+        </button>
+        <button id="btn-delete-snapshots" class="btn-snapshot" style="border:none;padding:10px 20px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;background:#666;color:white;display:flex;align-items:center;gap:4px;">
+          <i class="fa-solid fa-trash"></i> 모든 스냅샷 삭제
+        </button>
+        <span id="snapshot-progress" style="font-size:13px;color:var(--text-muted);"></span>
+      </div>
+    </div>
+
+    <!-- Hidden container for snapshot rendering -->
+    <div id="snapshot-render-container" style="position:fixed;bottom:0;right:0;width:320px;height:200px;opacity:0.01;pointer-events:none;z-index:-1;"></div>
   `;
 
   adminContent.querySelectorAll('.btn-role-user').forEach(btn => {
@@ -177,6 +202,182 @@ function renderAdminPanel() {
       btn.addEventListener('click', () => toggleAdmin(btn.dataset.uid, false));
     }
   });
+
+  const btnGenerate = document.getElementById('btn-generate-snapshots');
+  if (btnGenerate) {
+    btnGenerate.addEventListener('click', () => generateMissingSnapshots());
+  }
+
+  const btnRegenerate = document.getElementById('btn-regenerate-snapshots');
+  if (btnRegenerate) {
+    btnRegenerate.addEventListener('click', () => regenerateAllSnapshots());
+  }
+
+  const btnDelete = document.getElementById('btn-delete-snapshots');
+  if (btnDelete) {
+    btnDelete.addEventListener('click', () => deleteAllSnapshots());
+  }
+}
+
+async function generateMissingSnapshots() {
+  const btn = document.getElementById('btn-generate-snapshots');
+  const progress = document.getElementById('snapshot-progress');
+  if (!btn || !progress) return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+
+  try {
+    // Fetch all patterns
+    const snapshot = await getDocs(collection(db, 'patterns'));
+    const patterns = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const missing = patterns.filter(p => !p.snapshotBase64);
+
+    if (missing.length === 0) {
+      progress.textContent = '모든 패턴에 스냅이 있습니다.';
+      btn.disabled = false;
+      btn.style.opacity = '';
+      return;
+    }
+
+    progress.textContent = `${missing.length}개 패턴 처리 중...`;
+
+    const container = document.getElementById('snapshot-render-container');
+    let done = 0;
+    let errors = 0;
+
+    for (const pattern of missing) {
+      try {
+        const dataUrl = await Braid3DViewer.generateSnapshot(
+          container, pattern, KUMIHIMO_TEMPLATES, D3_STEPS
+        );
+
+        if (dataUrl) {
+          await updateDoc(doc(db, 'patterns', pattern.id), { snapshotBase64: dataUrl });
+          done++;
+        } else {
+          errors++;
+        }
+      } catch (err) {
+        console.error(`Snapshot failed for pattern ${pattern.id}:`, err);
+        errors++;
+      }
+
+      progress.textContent = `${done + errors}/${missing.length} 처리됨 (성공: ${done}, 실패: ${errors})`;
+    }
+
+    progress.textContent = `완료! 성공: ${done}, 실패: ${errors}`;
+    showToast(`스냅샷 생성 완료: ${done}개 성공, ${errors}개 실패`);
+  } catch (err) {
+    console.error('Snapshot generation error:', err);
+    showToast('스냅샷 생성 중 오류가 발생했습니다.');
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+  }
+}
+
+async function regenerateAllSnapshots() {
+  const btn = document.getElementById('btn-regenerate-snapshots');
+  const progress = document.getElementById('snapshot-progress');
+  if (!btn || !progress) return;
+
+  if (!confirm('모든 패턴의 스냅샷을 다시 생성합니다. 계속하시겠습니까?')) return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+
+  try {
+    const snapshot = await getDocs(collection(db, 'patterns'));
+    const patterns = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (patterns.length === 0) {
+      progress.textContent = '패턴이 없습니다.';
+      btn.disabled = false;
+      btn.style.opacity = '';
+      return;
+    }
+
+    progress.textContent = `${patterns.length}개 패턴 처리 중...`;
+
+    const container = document.getElementById('snapshot-render-container');
+    let done = 0;
+    let errors = 0;
+
+    for (const pattern of patterns) {
+      try {
+        const dataUrl = await Braid3DViewer.generateSnapshot(
+          container, pattern, KUMIHIMO_TEMPLATES, D3_STEPS
+        );
+
+        if (dataUrl) {
+          await updateDoc(doc(db, 'patterns', pattern.id), { snapshotBase64: dataUrl });
+          done++;
+        } else {
+          errors++;
+        }
+      } catch (err) {
+        console.error(`Snapshot failed for pattern ${pattern.id}:`, err);
+        errors++;
+      }
+
+      progress.textContent = `${done + errors}/${patterns.length} 처리됨 (성공: ${done}, 실패: ${errors})`;
+    }
+
+    progress.textContent = `완료! 성공: ${done}, 실패: ${errors}`;
+    showToast(`스냅샷 재생성 완료: ${done}개 성공, ${errors}개 실패`);
+  } catch (err) {
+    console.error('Snapshot regeneration error:', err);
+    showToast('스냅샷 재생성 중 오류가 발생했습니다.');
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+  }
+}
+
+async function deleteAllSnapshots() {
+  const btn = document.getElementById('btn-delete-snapshots');
+  const progress = document.getElementById('snapshot-progress');
+  if (!btn || !progress) return;
+
+  if (!confirm('모든 패턴의 스냅샷을 삭제합니다. 계속하시겠습니까?')) return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+
+  try {
+    const snapshot = await getDocs(collection(db, 'patterns'));
+    const withSnapshot = snapshot.docs.filter(d => d.data().snapshotBase64);
+
+    if (withSnapshot.length === 0) {
+      progress.textContent = '삭제할 스냅샷이 없습니다.';
+      btn.disabled = false;
+      btn.style.opacity = '';
+      return;
+    }
+
+    progress.textContent = `${withSnapshot.length}개 스냅샷 삭제 중...`;
+    let done = 0;
+
+    for (const docSnap of withSnapshot) {
+      try {
+        await updateDoc(doc(db, 'patterns', docSnap.id), { snapshotBase64: deleteField() });
+        done++;
+      } catch (err) {
+        console.error(`Delete failed for pattern ${docSnap.id}:`, err);
+      }
+      progress.textContent = `${done}/${withSnapshot.length} 삭제됨`;
+    }
+
+    progress.textContent = `완료! ${done}개 삭제`;
+    showToast(`스냅샷 삭제 완료: ${done}개`);
+  } catch (err) {
+    console.error('Snapshot deletion error:', err);
+    showToast('스냅샷 삭제 중 오류가 발생했습니다.');
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+  }
 }
 
 async function toggleAdmin(uid, add) {

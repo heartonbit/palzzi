@@ -25,6 +25,15 @@ export const LIGHTING_MIN   = 0.52;  // Lighting floor
 export const LIGHTING_RANGE = 0.48;  // Lighting dynamic range
 export const MAX_STEPS      = 500;   // Default simulation length (rows)
 
+// ── 3D Viewer defaults ───────────────────────────────────────────
+export const D3_TUBE_RADIUS   = 0.10;  // Tube thickness
+export const D3_PITCH_MULT    = 3;   // Braid Tightness, Row pitch multiplier (tubeR × this) 
+export const D3_STEPS         = 200;   // Default weave steps to display
+export const D3_OVER_UNDER    = 0.25;  // Over/under radial offset factor
+export const D3_INTERP        = 8;     // Curve interpolation points between rows
+export const D3_TUBE_SEG      = 12;    // Tube radial segments
+export const D3_MAX_INIT_ATTEMPTS = 10;
+
 // ── Per-context configurations ───────────────────────────────────
 // strandWidthRatio: strand thickness as fraction of RADIUS_BASE (for scaled contexts)
 // strandWidthMin  : clamp floor (px)

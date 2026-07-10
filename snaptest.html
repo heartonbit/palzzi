@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snapshot Transform Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 20px; background: #f5f5f5; }
+    h1 { margin-bottom: 8px; }
+    .desc { color: #666; margin-bottom: 20px; font-size: 14px; }
+    .row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+    .panel { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .panel h2 { margin: 0 0 8px; font-size: 15px; }
+    .panel .sub { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .viewer-container { width: 400px; height: 300px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+    .snapshot-img { border: 1px solid #ddd; border-radius: 4px; }
+    button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; background: #2a9d8f; color: #fff; margin: 4px; }
+    button.red { background: #e76f51; }
+    button.gray { background: #666; }
+    .btn-group { margin-bottom: 12px; }
+    .btn-group label { font-size: 13px; font-weight: 600; margin-right: 8px; }
+    #log { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Snapshot Transform Test</h1>
+  <p class="desc">브레이드 그룹 회전축 테스트. 각 축 버튼으로 회전 후 "스냅샷 캡처" 클릭.</p>
+
+  <div class="btn-group">
+    <label>🔄 braidGroup 회전:</label>
+    <button onclick="rotateAxis('x', 45)">X +45°</button>
+    <button onclick="rotateAxis('x', -45)">X -45°</button>
+    <button onclick="rotateAxis('y', 45)">Y +45°</button>
+    <button onclick="rotateAxis('y', -45)">Y -45°</button>
+    <button onclick="rotateAxis('z', 45)">Z +45°</button>
+    <button onclick="rotateAxis('z', -45)">Z -45°</button>
+    <button class="gray" onclick="resetRotation()">초기화</button>
+  </div>
+
+  <div class="btn-group">
+    <label>📷 카메라 변환:</label>
+    <button onclick="cameraOrbit(30)">Orbit Y +30°</button>
+    <button onclick="cameraRoll(20)">Roll +20°</button>
+    <button onclick="cameraRoll(-20)">Roll -20°</button>
+    <button class="gray" onclick="resetCamera()">카메라 초기화</button>
+  </div>
+
+  <div class="btn-group">
+    <label>🔍 Zoom (fov ÷ factor):</label>
+    <button onclick="cameraZoom(1.2)">×1.2</button>
+    <button onclick="cameraZoom(1.5)">×1.5</button>
+    <button onclick="cameraZoom(2)">×2</button>
+    <button onclick="cameraZoom(0.7)">×0.7 (축소)</button>
+    <button class="gray" onclick="resetZoom()">Zoom 초기화</button>
+  </div>
+
+  <div class="btn-group">
+    <label>🎯 FOV 직접 설정:</label>
+    <input type="number" id="fov-input" min="5" max="120" step="1" style="width:60px;padding:6px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+    <button onclick="setFov()">적용</button>
+    <span id="fov-current" style="font-size:13px;color:#888;margin-left:8px;"></span>
+  </div>
+
+  <div class="btn-group">
+    <button onclick="captureSnapshot()" class="red">📸 스냅샷 캡처</button>
+    <button onclick="resetAll()" class="gray">🔄 전체 초기화</button>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h2>라이브 뷰어</h2>
+      <div id="viewer-container" class="viewer-container"></div>
+    </div>
+    <div class="panel">
+      <h2>스냅샷 결과</h2>
+      <div class="sub" id="snapshot-info">—</div>
+      <img id="snapshot-img" class="snapshot-img" width="320" height="200" alt="snapshot">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>디버그 로그</h2>
+    <div id="log"></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { Braid3DViewer } from './src/braid-3d-viewer.js';
+    import { KUMIHIMO_TEMPLATES } from './src/templates/templates.js';
+    import { D3_STEPS } from './src/braid-config.js';
+
+    const logEl = document.getElementById('log');
+    function log(msg) {
+      console.log(msg);
+      logEl.textContent += msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    const container = document.getElementById('viewer-container');
+    const imgEl = document.getElementById('snapshot-img');
+    const infoEl = document.getElementById('snapshot-info');
+
+    let viewer = null;
+    let origCamPos = null;
+    let origCamUp = null;
+    let origTarget = null;
+    let origFov = null;
+
+    function createViewer() {
+      if (viewer) viewer.dispose();
+      container.innerHTML = '';
+      const tmpl = KUMIHIMO_TEMPLATES[0];
+      viewer = new Braid3DViewer(container, {
+        nThreads: tmpl.threads,
+        steps: Math.min(D3_STEPS, 120),
+        tubeRadius: Math.max(0.06, Math.min(0.15, 3.5 / tmpl.threads)),
+        colors: [...tmpl.defaultColors],
+        background: 0xf8f9fa,
+      });
+      viewer.renderer.render(viewer.scene, viewer.camera);
+      // Save original camera state
+      origCamPos = viewer.camera.position.clone();
+      origCamUp = viewer.camera.up.clone();
+      origTarget = viewer.orbitControls.target.clone();
+      origFov = viewer.camera.fov;
+      return viewer;
+    }
+
+    window.rotateAxis = function(axis, deg) {
+      if (!viewer || !viewer.braidGroup) { log('⚠️ viewer/braidGroup 없음'); return; }
+      const rad = THREE.MathUtils.degToRad(deg);
+      viewer.braidGroup.rotation[axis] = rad;
+      viewer.braidGroup.updateMatrixWorld();
+      viewer.scene.updateMatrixWorld(true);
+      log(`braidGroup.rotation.${axis} = ${deg}° (${rad.toFixed(4)} rad)`);
+      log(`matrixWorld: ${Array.from(viewer.braidGroup.matrixWorld.elements).map(v=>v.toFixed(2)).join(', ')}`);
+    };
+
+    window.resetRotation = function() {
+      if (!viewer || !viewer.braidGroup) return;
+      viewer.braidGroup.rotation.set(0, 0, 0);
+      viewer.braidGroup.scale.set(1, 1, 1);
+      viewer.braidGroup.updateMatrixWorld();
+      viewer.scene.updateMatrixWorld(true);
+      log(`braidGroup rotation/scale 초기화`);
+    };
+
+    window.cameraOrbit = function(deg) {
+      if (!viewer) return;
+      const target = viewer.orbitControls.target;
+      const offset = new THREE.Vector3().subVectors(viewer.camera.position, target);
+      const spherical = new THREE.Spherical().setFromVector3(offset);
+      spherical.theta += THREE.MathUtils.degToRad(deg);
+      offset.setFromSpherical(spherical);
+      viewer.camera.position.copy(target).add(offset);
+      viewer.camera.lookAt(target);
+      viewer.camera.updateMatrixWorld();
+      log(`카메라 orbit Y ${deg}° → pos: ${viewer.camera.position.toArray().map(v=>v.toFixed(2)).join(', ')}`);
+    };
+
+    window.cameraRoll = function(deg) {
+      if (!viewer) return;
+      const target = viewer.orbitControls.target;
+      const viewDir = new THREE.Vector3().subVectors(target, viewer.camera.position).normalize();
+      const q = new THREE.Quaternion().setFromAxisAngle(viewDir, THREE.MathUtils.degToRad(deg));
+      viewer.camera.up.applyQuaternion(q).normalize();
+      viewer.camera.lookAt(target);
+      viewer.camera.updateMatrixWorld();
+      log(`카메라 roll ${deg}° → up: ${viewer.camera.up.toArray().map(v=>v.toFixed(3)).join(', ')}`);
+    };
+
+    window.cameraZoom = function(factor) {
+      if (!viewer) return;
+      const newFov = origFov / factor;
+      viewer.camera.fov = newFov;
+      viewer.camera.updateProjectionMatrix();
+      log(`카메라 zoom ×${factor}: fov ${origFov} → ${newFov.toFixed(2)}`);
+      updateFovDisplay();
+    };
+
+    window.resetZoom = function() {
+      if (!viewer) return;
+      viewer.camera.fov = origFov;
+      viewer.camera.updateProjectionMatrix();
+      log(`카메라 zoom 초기화: fov ${origFov}`);
+      updateFovDisplay();
+    };
+
+    window.setFov = function() {
+      if (!viewer) return;
+      const input = document.getElementById('fov-input');
+      const val = parseFloat(input.value);
+      if (isNaN(val) || val < 5 || val > 120) { log('⚠️ FOV는 5~120 사이'); return; }
+      viewer.camera.fov = val;
+      viewer.camera.updateProjectionMatrix();
+      log(`카메라 FOV 직접 설정: ${val}°`);
+      updateFovDisplay();
+    };
+
+    function updateFovDisplay() {
+      const el = document.getElementById('fov-current');
+      if (el && viewer) el.textContent = `현재 FOV: ${viewer.camera.fov.toFixed(1)}°`;
+    }
+
+    window.resetCamera = function() {
+      if (!viewer) return;
+      viewer.camera.position.copy(origCamPos);
+      viewer.camera.up.copy(origCamUp);
+      viewer.camera.fov = origFov;
+      viewer.camera.lookAt(origTarget);
+      viewer.camera.updateMatrixWorld();
+      viewer.camera.updateProjectionMatrix();
+      log(`카메라 초기화`);
+      updateFovDisplay();
+    };
+
+    window.captureSnapshot = function() {
+      if (!viewer) return;
+      viewer.renderer.render(viewer.scene, viewer.camera);
+      const dataUrl = viewer.renderer.domElement.toDataURL('image/jpeg', 0.92);
+      imgEl.src = dataUrl;
+      infoEl.textContent = `${dataUrl.length.toLocaleString()} chars`;
+      log(`📸 스냅샷 캡처: ${dataUrl.length} chars`);
+    };
+
+    window.resetAll = function() {
+      createViewer();
+      log(`🔄 전체 초기화`);
+    };
+
+    // Init
+    createViewer();
+    updateFovDisplay();
+    log(`뷰어 생성 완료`);
+    log(`카메라 position: ${origCamPos.toArray().map(v=>v.toFixed(2)).join(', ')}`);
+    log(`카메라 target: ${origTarget.toArray().map(v=>v.toFixed(2)).join(', ')}`);
+    log(`카메라 fov: ${origFov}`);
+    log(`braidGroup 존재: ${!!viewer.braidGroup}`);
+  </script>
+</body>
+</html>
