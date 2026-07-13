@@ -1,4 +1,5 @@
 import { KumihimoDisk, calcBraidRadius, calcBraidPitch, calcBraidVStretch } from './engine/kumihimo.js';
+import * as THREE from 'three';
 import { Braid3DViewer, computePastelBackground } from './braid-3d-viewer.js';
 import {
   CULLING_RATIO, MAX_STEPS,
@@ -25,7 +26,10 @@ import {
   orderBy,
   limit,
   startAfter,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction,
+  arrayUnion,
+  arrayRemove
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
 import { initAdSense, injectSidebarAd, injectPlaybackAd } from './ads.js';
@@ -49,6 +53,29 @@ function computePatternKey(templateId, colors) {
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
+}
+
+// Compact color encoding for short share URLs
+function encodeColorsCompact(colors) {
+  const hex = colors.map(c => c.replace('#', '')).join('');
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.substring(i, i + 2), 16));
+  }
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodeColorsCompact(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded);
+  const colors = [];
+  for (let i = 0; i < binary.length; i += 3) {
+    const r = binary.charCodeAt(i).toString(16).padStart(2, '0');
+    const g = binary.charCodeAt(i + 1).toString(16).padStart(2, '0');
+    const b = binary.charCodeAt(i + 2).toString(16).padStart(2, '0');
+    colors.push(`#${r}${g}${b}`);
+  }
+  return colors;
 }
 let selectedThreadIndex = -1; // Index in the active threads (0 to nThreads-1)
 let braidZoom = 0.70; // (unused — kept for settings modal compatibility)
@@ -114,6 +141,16 @@ let sidebarLastDoc = null;
 let sidebarLoadingMore = false;
 let sidebarHasMore = true;
 let sidebarActivePatternId = null;
+let currentGalleryDocId = null; // Firestore doc ID of the current gallery pattern (for share URL)
+
+// Like State
+let currentUserLikes = new Set();   // pattern IDs the current user has liked (Firestore)
+let anonLikes = new Set();          // pattern IDs liked by anonymous user (sessionStorage)
+let currentViewedPatternId = null;  // Firestore doc ID of the pattern shown in the preview
+let currentPatternLikeCount = 0;    // like count for the currently viewed pattern
+let gallerySortMode = 'newest';     // 'newest' | 'mostLiked' | 'myLikes'
+let myLikesOffset = 0;             // pagination offset for 'myLikes' sort mode
+let myLikedPatternIds = [];         // ordered list of liked pattern IDs
 
 // DOM Elements
 const templateSelect = document.getElementById('template-select');
@@ -210,6 +247,7 @@ function initBraid3DViewer() {
   braid3dInitAttempts = 0;
   if (braid3dViewer) braid3dViewer.dispose();
   try {
+    const pastelBg = computePastelBackground(threadColors);
     braid3dViewer = new Braid3DViewer(braid3dContainer, {
       nThreads,
       steps: d3Steps,
@@ -219,7 +257,7 @@ function initBraid3DViewer() {
       interp: d3Interp,
       tubeSegments: d3TubeSeg,
       colors: [...threadColors],
-      background: 0xf8f9fa,
+      background: pastelBg,
     });
   } catch (e) {
     console.error('[3D] viewer creation failed:', e);
@@ -231,6 +269,9 @@ const gallerySidebar = document.querySelector('.gallery-sidebar');
 const sidebarPatternList = document.getElementById('sidebar-pattern-list');
 const sidebarLoadingEl = document.getElementById('sidebar-loading');
 const sidebarSentinel = document.getElementById('sidebar-sentinel');
+const sidebarSortSelect = document.getElementById('sidebar-sort');
+const btnLike = document.getElementById('btn-like');
+const previewLikeCount = document.getElementById('preview-like-count');
 
 // --- Auth UI ---
 const GOOGLE_ICON_SVG = `<svg class="google-icon" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.81-4.59l-7.98-6.19A23.93 23.93 0 0 0 0 24c0 3.77.9 7.35 2.56 10.59l7.97-6zm"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
@@ -262,12 +303,18 @@ function updateAuthUI(user) {
 
 // --- Initialization ---
 function init() {
+  loadAnonLikes();
+
   // Auth state listener
   onAuthChange((user) => {
     currentUser = user;
     updateAuthUI(user);
     if (user) {
       loadUserColorsFromFirestore();
+      loadUserLikes();
+    } else {
+      currentUserLikes = new Set();
+      updateLikeUI();
     }
   });
 
@@ -359,6 +406,7 @@ function setLanguage(lang) {
   setupTemplateDropdown();
   updateTemplateDisplayMetadata();
   updatePlaybackUI();
+  updateLikeUI();
 
   // Re-render preset colors with updated language
   renderPresetColors();
@@ -503,6 +551,9 @@ function updateBraid3D() {
     tubeSegments: d3TubeSeg,
     colors: [...threadColors],
   });
+  // Set pastel background based on thread colors
+  const pastelBg = computePastelBackground(threadColors);
+  braid3dViewer.scene.background = new THREE.Color(pastelBg);
 }
 
 /**
@@ -1330,7 +1381,7 @@ function setupEventListeners() {
         braid3dViewer.scene.background = origBg;
       }
 
-      await addDoc(collection(db, 'patterns'), {
+      const docRef = await addDoc(collection(db, 'patterns'), {
         templateId: activeTemplate.id,
         patternKey: computePatternKey(activeTemplate.id, threadColors),
         templateName: activeTemplate.name_en,
@@ -1343,9 +1394,13 @@ function setupEventListeners() {
         ownerUid: currentUser.uid,
         ownerName: currentUser.displayName || currentUser.email || 'Anonymous',
         ownerPhoto: currentUser.photoURL || '',
+        likes: 0,
         createdAt: serverTimestamp()
       });
 
+      sidebarActivePatternId = docRef.id;
+      currentGalleryDocId = docRef.id;
+      setViewedPattern(docRef.id, 0);
       showToast(t.toastSaveGallery);
     } catch (err) {
       console.error('Error saving to gallery:', err);
@@ -1356,9 +1411,16 @@ function setupEventListeners() {
   });
 
   btnShareUrl.addEventListener('click', () => {
-    const hexArray = threadColors.map(c => c.replace('#', ''));
-    const patternKey = computePatternKey(activeTemplate.id, threadColors);
-    const shareUrl = `${window.location.origin}${window.location.pathname}?tmpl=${activeTemplate.id}&colors=${hexArray.join(',')}&step=${currentStep}&key=${patternKey}`;
+    let shareUrl;
+    if (currentGalleryDocId) {
+      // Use Pages Function for dynamic OG page (correct snapshot per pattern)
+      shareUrl = `${window.location.origin}/og/${currentGalleryDocId}`;
+    } else {
+      // Fallback: short URL with encoded params (no OG snapshot)
+      const patternKey = computePatternKey(activeTemplate.id, threadColors);
+      const encodedColors = encodeColorsCompact(threadColors);
+      shareUrl = `${window.location.origin}/s?t=${activeTemplate.id}&c=${encodedColors}&s=${currentStep}&k=${patternKey}`;
+    }
     
     navigator.clipboard.writeText(shareUrl).then(() => {
       showToast(TRANSLATIONS[currentLang].toastShareUrl);
@@ -1452,6 +1514,17 @@ function setupEventListeners() {
   const btnZoomOut = document.getElementById('btn-zoom-out');
   if (btnZoomIn) btnZoomIn.addEventListener('click', () => { braid3dViewer?.zoom(0.8); });
   if (btnZoomOut) btnZoomOut.addEventListener('click', () => { braid3dViewer?.zoom(1.25); });
+
+  // 8. Like button
+  if (btnLike) btnLike.addEventListener('click', toggleLike);
+
+  // 9. Sidebar sort dropdown
+  if (sidebarSortSelect) {
+    sidebarSortSelect.addEventListener('change', () => {
+      gallerySortMode = sidebarSortSelect.value;
+      resetGalleryAndReload();
+    });
+  }
 }
 
 function onDiskClick(e) {
@@ -1760,17 +1833,21 @@ function loadExportData(data) {
 // Check for parameters in the URL to restore sharing state
 function checkUrlParams() {
   const params = new URLSearchParams(window.location.search);
-  const tmplId = params.get('tmpl');
-  const colorsParam = params.get('colors');
-  const stepParam = params.get('step');
+  // Support both short (t/c/s/k) and legacy (tmpl/colors/step/key) param names
+  const tmplId = params.get('t') || params.get('tmpl');
+  const colorsRaw = params.get('c');
+  const colorsLegacy = params.get('colors');
+  const stepParam = params.get('s') || params.get('step');
   let stepSet = false;
 
   if (tmplId) {
     const tmpl = KUMIHIMO_TEMPLATES.find(t => t.id === tmplId);
     if (tmpl) {
       let colors = null;
-      if (colorsParam) {
-        colors = colorsParam.split(',').map(c => `#${c}`);
+      if (colorsRaw) {
+        colors = decodeColorsCompact(colorsRaw);
+      } else if (colorsLegacy) {
+        colors = colorsLegacy.split(',').map(c => `#${c}`);
       }
       templateSelect.value = tmpl.id;
       loadTemplate(tmpl, colors);
@@ -1805,6 +1882,214 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // --- Gallery Sidebar: Cursor-based Pagination & Infinite Scroll ---\
 
+// --- Like Feature ---
+
+const ANON_LIKES_KEY = 'palzzi-anon-likes';
+const SESSION_ID_KEY = 'palzzi-session-id';
+
+function getSessionId() {
+  let sid = sessionStorage.getItem(SESSION_ID_KEY);
+  if (!sid) {
+    sid = crypto.randomUUID();
+    sessionStorage.setItem(SESSION_ID_KEY, sid);
+  }
+  return sid;
+}
+
+function loadAnonLikes() {
+  try {
+    const raw = sessionStorage.getItem(ANON_LIKES_KEY);
+    anonLikes = new Set(raw ? JSON.parse(raw) : []);
+  } catch { anonLikes = new Set(); }
+}
+
+function saveAnonLikes() {
+  sessionStorage.setItem(ANON_LIKES_KEY, JSON.stringify([...anonLikes]));
+}
+
+function isPatternLiked(patternId) {
+  return currentUserLikes.has(patternId) || anonLikes.has(patternId);
+}
+
+async function loadUserLikes() {
+  if (!currentUser) { currentUserLikes = new Set(); return; }
+  try {
+    const snap = await getDoc(doc(db, 'userLikes', currentUser.uid));
+    if (snap.exists() && snap.data().patternIds) {
+      currentUserLikes = new Set(snap.data().patternIds);
+    } else {
+      currentUserLikes = new Set();
+    }
+  } catch (e) {
+    console.error('Error loading user likes:', e);
+    currentUserLikes = new Set();
+  }
+  updateLikeUI();
+}
+
+async function toggleLike() {
+  if (!currentViewedPatternId) return;
+
+  const liked = isPatternLiked(currentViewedPatternId);
+
+  // --- Anonymous user: sessionStorage + Firestore count ---
+  if (!currentUser) {
+    const sessionId = getSessionId();
+    const patternRef = doc(db, 'patterns', currentViewedPatternId);
+    const likeRef = doc(patternRef, 'likes', sessionId);
+
+    if (liked) {
+      anonLikes.delete(currentViewedPatternId);
+      currentPatternLikeCount = Math.max(0, currentPatternLikeCount - 1);
+    } else {
+      anonLikes.add(currentViewedPatternId);
+      currentPatternLikeCount++;
+    }
+    saveAnonLikes();
+    updateLikeUI();
+    animateLikeButton();
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const patternSnap = await transaction.get(patternRef);
+        const currentLikes = patternSnap.exists() ? (patternSnap.data().likes || 0) : 0;
+        if (liked) {
+          transaction.delete(likeRef);
+          transaction.update(patternRef, { likes: Math.max(0, currentLikes - 1) });
+        } else {
+          transaction.set(likeRef, { sessionId, createdAt: serverTimestamp() });
+          transaction.update(patternRef, { likes: currentLikes + 1 });
+        }
+      });
+    } catch (e) {
+      console.error('Anon like toggle error:', e);
+      if (liked) { anonLikes.add(currentViewedPatternId); }
+      else { anonLikes.delete(currentViewedPatternId); }
+      currentPatternLikeCount = liked ? currentPatternLikeCount + 1 : Math.max(0, currentPatternLikeCount - 1);
+      saveAnonLikes();
+      updateLikeUI();
+    }
+    return;
+  }
+
+  // --- Authenticated user: Firestore transaction ---
+  const patternRef = doc(db, 'patterns', currentViewedPatternId);
+  const likeRef = doc(patternRef, 'likes', currentUser.uid);
+  const userLikesRef = doc(db, 'userLikes', currentUser.uid);
+  const isLiked = currentUserLikes.has(currentViewedPatternId);
+
+  // Optimistic UI update
+  if (isLiked) {
+    currentUserLikes.delete(currentViewedPatternId);
+    currentPatternLikeCount = Math.max(0, currentPatternLikeCount - 1);
+  } else {
+    currentUserLikes.add(currentViewedPatternId);
+    currentPatternLikeCount++;
+  }
+  updateLikeUI();
+  animateLikeButton();
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      // All reads first
+      const patternSnap = await transaction.get(patternRef);
+      const userLikesSnap = await transaction.get(userLikesRef);
+      const currentLikes = patternSnap.exists() ? (patternSnap.data().likes || 0) : 0;
+
+      // Then all writes
+      if (isLiked) {
+        transaction.delete(likeRef);
+        transaction.update(patternRef, { likes: Math.max(0, currentLikes - 1) });
+      } else {
+        transaction.set(likeRef, { createdAt: serverTimestamp() });
+        transaction.update(patternRef, { likes: currentLikes + 1 });
+      }
+
+      if (isLiked) {
+        if (userLikesSnap.exists()) {
+          transaction.update(userLikesRef, { patternIds: arrayRemove(currentViewedPatternId) });
+        }
+      } else {
+        if (userLikesSnap.exists()) {
+          transaction.update(userLikesRef, { patternIds: arrayUnion(currentViewedPatternId) });
+        } else {
+          transaction.set(userLikesRef, { patternIds: [currentViewedPatternId] });
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Like toggle error:', e);
+    // Revert optimistic update
+    if (isLiked) {
+      currentUserLikes.add(currentViewedPatternId);
+      currentPatternLikeCount++;
+    } else {
+      currentUserLikes.delete(currentViewedPatternId);
+      currentPatternLikeCount = Math.max(0, currentPatternLikeCount - 1);
+    }
+    updateLikeUI();
+    showToast(TRANSLATIONS[currentLang].toastLikeError);
+  }
+}
+
+function updateLikeUI() {
+  if (!btnLike || !previewLikeCount) return;
+  const isLiked = currentViewedPatternId && isPatternLiked(currentViewedPatternId);
+
+  // Heart button icon
+  const heartIcon = btnLike.querySelector('i');
+  if (isLiked) {
+    btnLike.classList.add('liked');
+    heartIcon.className = 'fa-solid fa-heart';
+  } else {
+    btnLike.classList.remove('liked');
+    heartIcon.className = 'fa-regular fa-heart';
+  }
+
+  // Info bar count
+  const countSpan = previewLikeCount.querySelector('span');
+  const countIcon = previewLikeCount.querySelector('i');
+  if (countSpan) {
+    const t = TRANSLATIONS[currentLang];
+    countSpan.textContent = t.likesCount.replace('{count}', currentPatternLikeCount);
+  }
+  if (countIcon) {
+    countIcon.className = 'fa-solid fa-heart';
+  }
+  applyLikePulse(previewLikeCount, currentPatternLikeCount);
+}
+
+function animateLikeButton() {
+  if (!btnLike) return;
+  btnLike.classList.remove('animate');
+  void btnLike.offsetWidth; // force reflow to restart animation
+  btnLike.classList.add('animate');
+}
+
+function getPulseDuration(likes) {
+  if (likes < 2) return null;
+  const duration = Math.max(0.8, 3.0 - Math.log2(likes + 1) * 0.5);
+  return duration.toFixed(2) + 's';
+}
+
+function applyLikePulse(el, likes) {
+  if (!el) return;
+  const dur = getPulseDuration(likes);
+  if (dur) {
+    el.classList.add('like-pulse');
+    el.style.setProperty('--pulse-duration', dur);
+  } else {
+    el.classList.remove('like-pulse');
+    el.style.removeProperty('--pulse-duration');
+  }
+}
+
+function setViewedPattern(patternId, likes) {
+  currentViewedPatternId = patternId;
+  currentPatternLikeCount = likes || 0;
+  updateLikeUI();
+}
+
 const SIDEBAR_PAGE_SIZE = 5;
 
 async function loadGalleryPage() {
@@ -1814,12 +2099,42 @@ async function loadGalleryPage() {
   if (sidebarLoadingEl) sidebarLoadingEl.classList.remove('hidden');
 
   try {
-    let q;
-    if (sidebarLastDoc) {
-      q = query(collection(db, 'patterns'), orderBy('createdAt', 'desc'), limit(SIDEBAR_PAGE_SIZE), startAfter(sidebarLastDoc));
+    if (gallerySortMode === 'myLikes' && currentUser) {
+      // Load user's liked patterns in batches
+      if (myLikedPatternIds.length === 0 && myLikesOffset === 0) {
+        const snap = await getDoc(doc(db, 'userLikes', currentUser.uid));
+        if (snap.exists() && snap.data().patternIds) {
+          myLikedPatternIds = snap.data().patternIds;
+        }
+      }
+      const batch = myLikedPatternIds.slice(myLikesOffset, myLikesOffset + SIDEBAR_PAGE_SIZE);
+      if (batch.length === 0) {
+        sidebarHasMore = false;
+      } else {
+        for (const pid of batch) {
+          const pSnap = await getDoc(doc(db, 'patterns', pid));
+          if (pSnap.exists()) {
+            const pattern = { id: pSnap.id, ...pSnap.data() };
+            sidebarPatterns.push(pattern);
+            const card = renderSidebarCard(pattern);
+            sidebarPatternList.insertBefore(card, sidebarSentinel);
+          }
+        }
+        myLikesOffset += batch.length;
+        if (myLikesOffset >= myLikedPatternIds.length) {
+          sidebarHasMore = false;
+        }
+      }
     } else {
-      q = query(collection(db, 'patterns'), orderBy('createdAt', 'desc'), limit(SIDEBAR_PAGE_SIZE));
-    }
+      let q;
+      const orderField = gallerySortMode === 'mostLiked' ? 'likes' : 'createdAt';
+      const orderDir = 'desc';
+
+      if (sidebarLastDoc) {
+        q = query(collection(db, 'patterns'), orderBy(orderField, orderDir), limit(SIDEBAR_PAGE_SIZE), startAfter(sidebarLastDoc));
+      } else {
+        q = query(collection(db, 'patterns'), orderBy(orderField, orderDir), limit(SIDEBAR_PAGE_SIZE));
+      }
 
     const snapshot = await getDocs(q);
 
@@ -1840,6 +2155,7 @@ async function loadGalleryPage() {
         sidebarHasMore = false;
       }
     }
+    } // end else (non-myLikes mode)
   } catch (err) {
     console.error('Error loading gallery sidebar:', err);
     sidebarHasMore = false;
@@ -1854,6 +2170,16 @@ async function loadGalleryPage() {
   }
 }
 
+function resetGalleryAndReload() {
+  sidebarPatterns = [];
+  sidebarLastDoc = null;
+  sidebarHasMore = true;
+  myLikesOffset = 0;
+  myLikedPatternIds = [];
+  sidebarPatternList.querySelectorAll('.sidebar-pattern-card').forEach(c => c.remove());
+  loadGalleryPage();
+}
+
 function renderSidebarCard(pattern) {
   const t = TRANSLATIONS[currentLang];
   const card = document.createElement('div');
@@ -1865,6 +2191,10 @@ function renderSidebarCard(pattern) {
     : (pattern.nameEn || pattern.templateName || t.sidebarUnknown);
 
   const threadsLabel = pattern.nThreads ? `${pattern.nThreads}${t.sidebarThreadsUnit}` : '-';
+  const likeCount = pattern.likes || 0;
+  const isLiked = isPatternLiked(pattern.id);
+  const likeClass = isLiked ? ' liked' : '';
+  const likeIcon = 'fa-solid fa-heart';
 
   card.innerHTML = `
     <div class="sidebar-card-preview">${pattern.snapshotBase64
@@ -1872,7 +2202,10 @@ function renderSidebarCard(pattern) {
       : `<canvas width="56" height="56"></canvas>`}</div>
     <div class="sidebar-card-info">
       <div class="sidebar-card-name">${patternName}</div>
-      <div class="sidebar-card-meta">${threadsLabel}</div>
+      <div class="sidebar-card-meta">
+        <span>${threadsLabel}</span>
+        <span class="sidebar-card-likes${likeClass}"><i class="${likeIcon}"></i> ${likeCount}</span>
+      </div>
       <div class="sidebar-card-colors">${(pattern.colors || []).slice(0, 6).map(c => `<div class="sidebar-card-dot" style="background-color:${c}"></div>`).join('')}</div>
     </div>
   `;
@@ -1882,6 +2215,8 @@ function renderSidebarCard(pattern) {
     const canvas = card.querySelector('canvas');
     drawSidebarBraidPreview(canvas, pattern.colors || [], pattern.nThreads || 8, pattern.maxSteps || 120);
   }
+
+  applyLikePulse(card.querySelector('.sidebar-card-likes'), likeCount);
 
   card.addEventListener('click', () => {
     sidebarActivePatternId = pattern.id;
@@ -2013,6 +2348,8 @@ function loadPatternToSimulator(pattern) {
   updatePlaybackUI();
 
   renderAll();
+  currentGalleryDocId = pattern.id;
+  setViewedPattern(pattern.id, pattern.likes);
   showToast(currentLang === 'ko' ? '패턴을 불러왔습니다!' : 'Pattern loaded!');
 }
 

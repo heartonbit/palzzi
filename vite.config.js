@@ -40,7 +40,10 @@ export default defineConfig(({ mode }) => {
   server: {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        // Rewrite /simulator → /simulator.html in dev mode (matches Firebase Hosting rewrite)
+        // Rewrite short share URL and page routes in dev mode
+        if (req.url === '/s' || req.url.startsWith('/s?')) {
+          req.url = '/simulator.html' + req.url.slice(2);
+        }
         if (req.url === '/simulator' || req.url === '/simulator/') {
           req.url = '/simulator.html';
         }

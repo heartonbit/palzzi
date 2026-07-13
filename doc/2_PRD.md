@@ -54,6 +54,12 @@
   * **도안 다운로드:** 인쇄 및 오프라인 참조가 가능하도록 전체 '기호화된 도안 차트'를 **고해상도 PNG** 또는 해상도 깨짐이 없는 **SVG 파일**로 내보내기 기능 제공.
   * **완성본 다운로드:** 완성 시각화 뷰의 캔버스 이미지를 추출하여 **PNG 파일**로 다운로드.
 * **공유(Share):** 현재 상태의 패턴 식별값 및 색상 파라미터를 담은 고유 공유용 URL 생성 기능 제공.
+  - **단축 URL:** `/s?t={templateId}&c={base64url_colors}&s={step}&k={patternKey}` 형식
+  - 색상값은 base64url 인코딩으로 압축 (8색 기준 약 24자)
+  - 기존 `?tmpl=...&colors=...` 형식도 하위 호환
+* **갤러리(Gallery):** Firestore에 저장된 패턴을 갤러리 페이지(`/`) 및 시뮬레이터 사이드바에서 탐색. 좋아요, 정렬(최신순/좋아요순/내 좋아요순) 지원.
+* **스냅샷:** 3D 뷰어 스냅샷을 `snapshotBase64`(base64 JPEG)로 Firestore에 저장. 빌드 시 정적 JPG 파일(`public/snapshots/{docId}.jpg`)로 생성되어 Firebase Hosting에서 직접 서빙.
+* **좋아요(Like):** 인증 사용자는 Firestore 트랜잭션으로 영구 저장. 비로그인 사용자는 세션당 1회 제한(sessionStorage + sessionId 기반 Firestore 반영).
 
 ---
 

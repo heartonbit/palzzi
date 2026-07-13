@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Palzzi - 쿠미히모 패턴 갤러리">
+  <meta property="og:description" content="사용자들이 디자인한 쿠미히모 팔찌 패턴을 구경하고, 나만의 패턴도 만들어 보세요.">
+  <meta property="og:image" content="/palzzi_logo.png">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="/favicon.ico">
   <title data-i18n="galleryTitle">Palzzi - 쿠미히모 패턴 갤러리</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
@@ -52,6 +58,12 @@
         <div class="gallery-header">
           <h2 data-i18n="galleryHeading"><i class="fa-solid fa-images"></i> 쿠미히모 패턴 갤러리</h2>
           <p class="gallery-subtitle" data-i18n="gallerySubtitle">Firebase에 저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.</p>
+          <div class="gallery-sort-row">
+            <select id="gallery-sort" class="gallery-sort-select">
+              <option value="newest" data-i18n="sortNewest">최신순</option>
+              <option value="mostLiked" data-i18n="sortMostLiked">좋아요 많은 순</option>
+            </select>
+          </div>
         </div>
 
         <!-- Loading / Empty states -->
@@ -85,6 +97,14 @@
           <!-- Pattern preview canvas -->
           <div class="detail-preview">
             <canvas id="detail-canvas" width="320" height="200"></canvas>
+            <button id="btn-detail-like" class="detail-like-btn" title="Like" aria-label="Like">
+              <i class="fa-regular fa-heart"></i>
+            </button>
+          </div>
+          <div class="detail-like-info">
+            <span id="detail-like-count" class="detail-like-count">
+              <i class="fa-solid fa-heart"></i> <span>0</span>
+            </span>
           </div>
           <!-- Pattern metadata -->
           <div class="detail-meta">

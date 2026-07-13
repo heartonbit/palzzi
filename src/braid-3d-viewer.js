@@ -368,8 +368,10 @@ export class Braid3DViewer {
    */
   captureSnapshot(width, height, rotateDeg = 0, fov = 0) {
     if (!this.renderer || !this.scene || !this.camera) return '';
-    const w = width || this.renderer.domElement.width;
-    const h = height || this.renderer.domElement.height;
+    const origW = this.renderer.domElement.width;
+    const origH = this.renderer.domElement.height;
+    const w = width || origW;
+    const h = height || origH;
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -395,15 +397,20 @@ export class Braid3DViewer {
 
     this.renderer.render(this.scene, this.camera);
 
+    const dataUrl = this.renderer.domElement.toDataURL('image/jpeg', 0.92);
+
     // Restore original state
+    this.renderer.setSize(origW, origH);
     this.camera.position.copy(origCamPos);
     this.camera.up.copy(origUp);
     this.camera.fov = origFov;
+    this.camera.aspect = origW / origH;
     this.camera.lookAt(target);
     this.camera.updateMatrixWorld();
     this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
 
-    return this.renderer.domElement.toDataURL('image/jpeg', 0.92);
+    return dataUrl;
   }
 
   /**

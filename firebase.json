@@ -2,6 +2,9 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -10,6 +13,18 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/og/**",
+        "function": "og"
+      },
+      {
+        "source": "/img/**",
+        "function": "img"
+      },
+      {
+        "source": "/s",
+        "destination": "/simulator.html"
+      },
       {
         "source": "/simulator{,/**}",
         "destination": "/simulator.html"

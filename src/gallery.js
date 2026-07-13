@@ -11,7 +11,11 @@ import {
   getDocs,
   getDoc,
   deleteDoc,
-  doc
+  doc,
+  runTransaction,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { signInWithGoogle, signOutUser, onAuthChange } from './firebase/auth.js';
 import { KumihimoDisk, calcBraidRadius, calcBraidPitch, calcBraidVStretch } from './engine/kumihimo.js';
@@ -24,6 +28,9 @@ let patterns = [];
 let selectedPattern = null;
 let currentUser = null;
 let userIsAdmin = false;
+let currentUserLikes = new Set();
+let anonLikes = new Set();
+let gallerySortMode = 'newest';
 
 // --- DOM Elements ---
 const authArea = document.getElementById('auth-area');
@@ -44,6 +51,9 @@ const detailCreated = document.getElementById('detail-created');
 const detailColorList = document.getElementById('detail-color-list');
 const btnLoadSimulator = document.getElementById('btn-load-simulator');
 const btnDeletePattern = document.getElementById('btn-delete-pattern');
+const gallerySortSelect = document.getElementById('gallery-sort');
+const btnDetailLike = document.getElementById('btn-detail-like');
+const detailLikeCount = document.getElementById('detail-like-count');
 
 const ctxDetail = detailCanvas.getContext('2d');
 
@@ -77,8 +87,248 @@ function updateAuthUI(user) {
   }
 }
 
+// --- Like Feature ---
+
+const ANON_LIKES_KEY = 'palzzi-anon-likes';
+const SESSION_ID_KEY = 'palzzi-session-id';
+
+function getSessionId() {
+  let sid = sessionStorage.getItem(SESSION_ID_KEY);
+  if (!sid) {
+    sid = crypto.randomUUID();
+    sessionStorage.setItem(SESSION_ID_KEY, sid);
+  }
+  return sid;
+}
+
+function loadAnonLikes() {
+  try {
+    const raw = sessionStorage.getItem(ANON_LIKES_KEY);
+    anonLikes = new Set(raw ? JSON.parse(raw) : []);
+  } catch { anonLikes = new Set(); }
+}
+
+function saveAnonLikes() {
+  sessionStorage.setItem(ANON_LIKES_KEY, JSON.stringify([...anonLikes]));
+}
+
+function isPatternLiked(patternId) {
+  return currentUserLikes.has(patternId) || anonLikes.has(patternId);
+}
+
+async function loadUserLikes() {
+  if (!currentUser) { currentUserLikes = new Set(); return; }
+  try {
+    const snap = await getDoc(doc(db, 'userLikes', currentUser.uid));
+    if (snap.exists() && snap.data().patternIds) {
+      currentUserLikes = new Set(snap.data().patternIds);
+    } else {
+      currentUserLikes = new Set();
+    }
+  } catch (e) {
+    console.error('Error loading user likes:', e);
+    currentUserLikes = new Set();
+  }
+}
+
+async function toggleLike(patternId) {
+  if (!patternId) return;
+
+  const liked = isPatternLiked(patternId);
+
+  // --- Anonymous user: sessionStorage + Firestore count ---
+  if (!currentUser) {
+    const sessionId = getSessionId();
+    const patternRef = doc(db, 'patterns', patternId);
+    const likeRef = doc(patternRef, 'likes', sessionId);
+    const pattern = patterns.find(p => p.id === patternId);
+    const oldCount = pattern ? (pattern.likes || 0) : 0;
+
+    if (liked) {
+      anonLikes.delete(patternId);
+      if (pattern) pattern.likes = Math.max(0, oldCount - 1);
+    } else {
+      anonLikes.add(patternId);
+      if (pattern) pattern.likes = oldCount + 1;
+    }
+    saveAnonLikes();
+    refreshCardLikeUI(patternId);
+    if (selectedPattern && selectedPattern.id === patternId) updateDetailLikeUI(selectedPattern);
+    animateDetailLikeBtn();
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const patternSnap = await transaction.get(patternRef);
+        const currentLikes = patternSnap.exists() ? (patternSnap.data().likes || 0) : 0;
+        if (liked) {
+          transaction.delete(likeRef);
+          transaction.update(patternRef, { likes: Math.max(0, currentLikes - 1) });
+        } else {
+          transaction.set(likeRef, { sessionId, createdAt: serverTimestamp() });
+          transaction.update(patternRef, { likes: currentLikes + 1 });
+        }
+      });
+    } catch (e) {
+      console.error('Anon like toggle error:', e);
+      if (liked) { anonLikes.add(patternId); }
+      else { anonLikes.delete(patternId); }
+      if (pattern) pattern.likes = liked ? oldCount + 1 : Math.max(0, oldCount - 1);
+      saveAnonLikes();
+      refreshCardLikeUI(patternId);
+      if (selectedPattern && selectedPattern.id === patternId) updateDetailLikeUI(selectedPattern);
+    }
+    return;
+  }
+
+  // --- Authenticated user: Firestore transaction ---
+  const patternRef = doc(db, 'patterns', patternId);
+  const likeRef = doc(patternRef, 'likes', currentUser.uid);
+  const userLikesRef = doc(db, 'userLikes', currentUser.uid);
+  const isLiked = currentUserLikes.has(patternId);
+
+  // Find pattern in local array for optimistic count update
+  const pattern = patterns.find(p => p.id === patternId);
+  const oldCount = pattern ? (pattern.likes || 0) : 0;
+
+  // Optimistic UI update
+  if (isLiked) {
+    currentUserLikes.delete(patternId);
+    if (pattern) pattern.likes = Math.max(0, oldCount - 1);
+  } else {
+    currentUserLikes.add(patternId);
+    if (pattern) pattern.likes = oldCount + 1;
+  }
+  refreshCardLikeUI(patternId);
+  if (selectedPattern && selectedPattern.id === patternId) updateDetailLikeUI(selectedPattern);
+  animateDetailLikeBtn();
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      // All reads first
+      const patternSnap = await transaction.get(patternRef);
+      const userLikesSnap = await transaction.get(userLikesRef);
+      const currentLikes = patternSnap.exists() ? (patternSnap.data().likes || 0) : 0;
+
+      // Then all writes
+      if (isLiked) {
+        transaction.delete(likeRef);
+        transaction.update(patternRef, { likes: Math.max(0, currentLikes - 1) });
+      } else {
+        transaction.set(likeRef, { createdAt: serverTimestamp() });
+        transaction.update(patternRef, { likes: currentLikes + 1 });
+      }
+
+      if (isLiked) {
+        if (userLikesSnap.exists()) {
+          transaction.update(userLikesRef, { patternIds: arrayRemove(patternId) });
+        }
+      } else {
+        if (userLikesSnap.exists()) {
+          transaction.update(userLikesRef, { patternIds: arrayUnion(patternId) });
+        } else {
+          transaction.set(userLikesRef, { patternIds: [patternId] });
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Like toggle error:', e);
+    // Revert optimistic update
+    if (isLiked) {
+      currentUserLikes.add(patternId);
+      if (pattern) pattern.likes = oldCount + 1;
+    } else {
+      currentUserLikes.delete(patternId);
+      if (pattern) pattern.likes = Math.max(0, oldCount - 1);
+    }
+    refreshCardLikeUI(patternId);
+    if (selectedPattern && selectedPattern.id === patternId) updateDetailLikeUI(selectedPattern);
+    showToast(TRANSLATIONS[currentLang].toastLikeError);
+  }
+}
+
+function refreshCardLikeUI(patternId) {
+  const card = galleryGrid.querySelector(`.pattern-card[data-id="${patternId}"]`);
+  if (!card) return;
+  const pattern = patterns.find(p => p.id === patternId);
+  if (!pattern) return;
+
+  const likeBtn = card.querySelector('.card-like-btn');
+  const likeCount = card.querySelector('.card-like-count');
+  const isLiked = isPatternLiked(patternId);
+  const count = pattern.likes || 0;
+
+  if (likeBtn) {
+    const icon = likeBtn.querySelector('i');
+    if (isLiked) {
+      likeBtn.classList.add('liked');
+      icon.className = 'fa-solid fa-heart';
+    } else {
+      likeBtn.classList.remove('liked');
+      icon.className = 'fa-regular fa-heart';
+    }
+  }
+  if (likeCount) {
+    const icon = likeCount.querySelector('i');
+    likeCount.childNodes[likeCount.childNodes.length - 1].textContent = ` ${count}`;
+    if (icon) icon.className = 'fa-solid fa-heart';
+  }
+  applyLikePulse(likeCount, count);
+}
+
+function updateDetailLikeUI(pattern) {
+  if (!btnDetailLike || !detailLikeCount || !pattern) return;
+  const isLiked = isPatternLiked(pattern.id);
+  const count = pattern.likes || 0;
+
+  const heartIcon = btnDetailLike.querySelector('i');
+  if (isLiked) {
+    btnDetailLike.classList.add('liked');
+    heartIcon.className = 'fa-solid fa-heart';
+  } else {
+    btnDetailLike.classList.remove('liked');
+    heartIcon.className = 'fa-regular fa-heart';
+  }
+
+  const countSpan = detailLikeCount.querySelector('span');
+  const countIcon = detailLikeCount.querySelector('i');
+  if (countSpan) {
+    const t = TRANSLATIONS[currentLang];
+    countSpan.textContent = t.likesCount.replace('{count}', count);
+  }
+  if (countIcon) {
+    countIcon.className = 'fa-solid fa-heart';
+  }
+  applyLikePulse(detailLikeCount, count);
+}
+
+function animateDetailLikeBtn() {
+  if (!btnDetailLike) return;
+  btnDetailLike.classList.remove('animate');
+  void btnDetailLike.offsetWidth;
+  btnDetailLike.classList.add('animate');
+}
+
+function getPulseDuration(likes) {
+  if (likes < 2) return null;
+  const duration = Math.max(0.8, 3.0 - Math.log2(likes + 1) * 0.5);
+  return duration.toFixed(2) + 's';
+}
+
+function applyLikePulse(el, likes) {
+  if (!el) return;
+  const dur = getPulseDuration(likes);
+  if (dur) {
+    el.classList.add('like-pulse');
+    el.style.setProperty('--pulse-duration', dur);
+  } else {
+    el.classList.remove('like-pulse');
+    el.style.removeProperty('--pulse-duration');
+  }
+}
+
 // --- Initialization ---
 function init() {
+  loadAnonLikes();
   setLanguage('en');
 
   // Auth state listener — update UI and re-render on auth change
@@ -92,8 +342,10 @@ function init() {
       } catch {
         userIsAdmin = false;
       }
+      await loadUserLikes();
     } else {
       userIsAdmin = false;
+      currentUserLikes = new Set();
     }
     if (btnAdminLink) {
       btnAdminLink.classList.toggle('hidden', !userIsAdmin);
@@ -148,7 +400,8 @@ async function fetchPatterns() {
   showState('loading');
 
   try {
-    const q = query(collection(db, 'patterns'), orderBy('createdAt', 'desc'));
+    const orderField = gallerySortMode === 'mostLiked' ? 'likes' : 'createdAt';
+    const q = query(collection(db, 'patterns'), orderBy(orderField, 'desc'));
     const snapshot = await getDocs(q);
 
     patterns = [];
@@ -204,12 +457,20 @@ function renderGallery() {
     const threadsLabel = pattern.nThreads ? `${pattern.nThreads}${t.threadsUnit}` : '-';
     const ownerName = pattern.ownerName || 'Anonymous';
     const ownerPhoto = pattern.ownerPhoto || '';
+    const likeCount = pattern.likes || 0;
+    const isLiked = isPatternLiked(pattern.id);
+    const likeIconClass = 'fa-solid fa-heart';
+    const likedClass = isLiked ? ' liked' : '';
 
     card.innerHTML = `
       <div class="card-preview">
         ${pattern.snapshotBase64
           ? `<img src="${pattern.snapshotBase64}" alt="${patternName}" class="card-snapshot" width="320" height="200">`
           : `<canvas width="320" height="200"></canvas>`}
+        <button class="card-like-btn${likedClass}" data-pattern-id="${pattern.id}" title="${t.likeLabel}" aria-label="${t.likeLabel}">
+          <i class="${likeIconClass}"></i>
+        </button>
+        <span class="card-like-count"><i class="${likeIconClass}"></i> ${likeCount}</span>
       </div>
       <div class="card-body">
         <div class="card-meta">
@@ -226,6 +487,15 @@ function renderGallery() {
         </div>
       </div>
     `;
+
+    // Like button click handler (stop propagation to avoid card click)
+    const likeBtn = card.querySelector('.card-like-btn');
+    likeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLike(pattern.id);
+    });
+
+    applyLikePulse(card.querySelector('.card-like-count'), likeCount);
 
     // Render braid preview on card canvas only if no snapshot available
     if (!pattern.snapshotBase64) {
@@ -461,6 +731,9 @@ function showDetail(pattern) {
   } else {
     btnDeletePattern.classList.add('hidden');
   }
+
+  // Update like UI in detail panel
+  updateDetailLikeUI(pattern);
 }
 
 function hideDetail() {
@@ -536,6 +809,21 @@ function setupEventListeners() {
       showToast(t.deleteFailed);
     }
   });
+
+  // Sort dropdown
+  if (gallerySortSelect) {
+    gallerySortSelect.addEventListener('change', () => {
+      gallerySortMode = gallerySortSelect.value;
+      fetchPatterns();
+    });
+  }
+
+  // Detail panel like button
+  if (btnDetailLike) {
+    btnDetailLike.addEventListener('click', () => {
+      if (selectedPattern) toggleLike(selectedPattern.id);
+    });
+  }
 }
 
 function showToast(msg) {

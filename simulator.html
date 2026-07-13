@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Palzzi - 쿠미히모 팔찌 시뮬레이터">
+  <meta property="og:description" content="실제로 짜서 착용할 수 있는 팔찌 패턴을 디자인하고, 3D 미리보기로 완성 모습을 확인하세요.">
+  <meta property="og:image" content="/palzzi_logo.png">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="/favicon.ico">
   <title data-i18n="title">Palzzi (팔찌) - 쿠미히모 2D 시뮬레이터</title>
   <!-- Google Fonts & Font Awesome Icons -->
@@ -70,6 +76,11 @@
       <aside class="gallery-sidebar">
         <div class="sidebar-header">
           <h3 data-i18n="sidebarTitle"><i class="fa-solid fa-images"></i> 패턴 갤러리</h3>
+          <select id="sidebar-sort" class="sidebar-sort-select">
+            <option value="newest" data-i18n="sortNewest">최신순</option>
+            <option value="mostLiked" data-i18n="sortMostLiked">좋아요 많은 순</option>
+            <option value="myLikes" data-i18n="sortMyLikes">내가 좋아요한 순</option>
+          </select>
         </div>
         <div class="sidebar-list" id="sidebar-pattern-list">
           <!-- Pattern cards dynamically populated by main.js -->
@@ -151,6 +162,14 @@
                 <button id="btn-zoom-in" class="zoom-btn" title="Zoom In">+</button>
                 <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out">−</button>
               </div>
+              <button id="btn-like" class="like-btn" title="Like" aria-label="Like">
+                <i class="fa-regular fa-heart"></i>
+              </button>
+            </div>
+            <div class="preview-info-bar">
+              <span id="preview-like-count" class="preview-like-count">
+                <i class="fa-solid fa-heart"></i> <span>0</span>
+              </span>
             </div>
           </div>
 
