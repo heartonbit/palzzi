@@ -18,16 +18,17 @@ import os
 
 # --- Config ---
 COLORS = [
-    (0x17, 0x7E, 0x89),  # Teal
-    (0x08, 0x4C, 0x61),  # Dark teal
-    (0xDB, 0x3A, 0x34),  # Red
+    (0xEE, 0xC6, 0x43),  # Gold
+    (0x5B, 0x92, 0x79),  # 5B9279
+    (0xF5, 0xF5, 0xDC),  # Cream
 ]
+BG_COLOR = (0x29, 0x17, 0x11, 255)  # #291711 
 
 W, H = 200, 200
-CX, CY = W // 2, H // 2
-BRAID_H = 120
-AMPLITUDE = 32
-STROKE_W = 13
+CX, CY = W // 2 + 15, H // 2 + 15
+BRAID_H = 110
+AMPLITUDE = 38
+STROKE_W = 25
 NUM_POINTS = 2000
 TWISTS = 1.5
 TILT_ANGLE = math.pi / 4  # 45 degrees
@@ -98,19 +99,32 @@ def generate():
             if zbuf[y][x] > -2.0:
                 img.putpixel((x, y), pixbuf[y][x])
 
+    # Add ellipse background
+    bg = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(bg)
+    # Ellipse bounds: slightly larger than braid
+    margin = 10
+    draw.ellipse(
+        [margin, margin, W - margin, H - margin],
+        fill=BG_COLOR
+    )
+    # Composite braid on top of ellipse
+    final = Image.alpha_composite(bg, img)
+
     public = os.path.join(ROOT, 'public')
     os.makedirs(public, exist_ok=True)
 
     # Header logo
     logo_w = int(W * LOGO_HEIGHT / H)
-    logo = img.resize((logo_w, LOGO_HEIGHT), Image.LANCZOS)
+    logo = final.resize((logo_w, LOGO_HEIGHT), Image.LANCZOS)
     logo.save(os.path.join(public, 'logo.png'), 'PNG')
 
     # Source render
-    img.save(os.path.join(public, 'palzzi_logo.png'), 'PNG')
+    final.save(os.path.join(public, 'palzzi_logo.png'), 'PNG')
 
     # Favicon
-    favicon = img.resize((32, 32), Image.LANCZOS)
+    favicon = final.resize((32, 32), Image.LANCZOS)
     favicon.save(
         os.path.join(public, 'favicon.ico'),
         format='ICO',
