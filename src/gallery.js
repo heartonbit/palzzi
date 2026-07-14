@@ -766,18 +766,7 @@ function setupEventListeners() {
   // Load pattern to simulator
   btnLoadSimulator.addEventListener('click', () => {
     if (!selectedPattern) return;
-
-    // Build URL with pattern data — navigate to simulator page
-    const hexArray = selectedPattern.colors.map(c => c.replace('#', ''));
-    const url = new URL('/simulator', window.location.origin);
-    url.searchParams.set('tmpl', selectedPattern.templateId || 'kumihimo-8-candy');
-    url.searchParams.set('colors', hexArray.join(','));
-    url.searchParams.set('step', selectedPattern.maxSteps || '120');
-    if (selectedPattern.patternKey) {
-      url.searchParams.set('key', selectedPattern.patternKey);
-    }
-
-    window.location.href = url.toString();
+    window.location.href = `/simulator?d=${selectedPattern.id}`;
   });
 
   // Delete pattern

@@ -1,6 +1,6 @@
 {
   "name": "palzzi-kumihimo-simulator",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A 2D interactive Kumihimo braiding simulator and visualizer",
   "main": "src/main.js",
   "type": "module",
@@ -8,7 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "npx vite",
-    "build": "npx vite build"
+    "build": "npx vite build && cp dist/simulator.html functions/simulator.html"
   },
   "devDependencies": {
     "vite": "^8.1.0",

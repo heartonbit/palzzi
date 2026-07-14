@@ -23,6 +23,7 @@ import {
   getDoc,
   getDocs,
   query,
+  where,
   orderBy,
   limit,
   startAfter,
@@ -1368,6 +1369,27 @@ function setupEventListeners() {
       }
       const patternName = userInput.trim() || defaultName;
 
+      // Check for duplicate pattern (same template + colors)
+      const newPatternKey = computePatternKey(activeTemplate.id, threadColors);
+      const dupQ = query(
+        collection(db, 'patterns'),
+        where('patternKey', '==', newPatternKey),
+        limit(1)
+      );
+      const dupSnap = await getDocs(dupQ);
+      if (!dupSnap.empty) {
+        const existingId = dupSnap.docs[0].id;
+        currentGalleryDocId = existingId;
+        btnShareUrl.disabled = false;
+        btnShareUrl.title = currentLang === 'ko' ? '공유 링크 복사 / Copy Share URL' : 'Copy Share Link / 공유 링크 복사';
+        history.replaceState(null, '', `${window.location.pathname}?d=${existingId}`);
+        showToast(currentLang === 'ko'
+          ? '이미 동일한 패턴이 저장되어 있습니다.'
+          : 'An identical pattern already exists.');
+        btnSaveGallery.disabled = false;
+        return;
+      }
+
       // Capture 3D braid snapshot for gallery/sidebar preview
       let snapshotBase64 = '';
       if (braid3dViewer && braid3dViewer.braidGroup) {
@@ -1400,7 +1422,10 @@ function setupEventListeners() {
 
       sidebarActivePatternId = docRef.id;
       currentGalleryDocId = docRef.id;
+      btnShareUrl.disabled = false;
+      btnShareUrl.title = currentLang === 'ko' ? '공유 링크 복사 / Copy Share URL' : 'Copy Share Link / 공유 링크 복사';
       setViewedPattern(docRef.id, 0);
+      resetGalleryAndReload();
       showToast(t.toastSaveGallery);
     } catch (err) {
       console.error('Error saving to gallery:', err);
@@ -1411,17 +1436,9 @@ function setupEventListeners() {
   });
 
   btnShareUrl.addEventListener('click', () => {
-    let shareUrl;
-    if (currentGalleryDocId) {
-      // Use Pages Function for dynamic OG page (correct snapshot per pattern)
-      shareUrl = `${window.location.origin}/og/${currentGalleryDocId}`;
-    } else {
-      // Fallback: short URL with encoded params (no OG snapshot)
-      const patternKey = computePatternKey(activeTemplate.id, threadColors);
-      const encodedColors = encodeColorsCompact(threadColors);
-      shareUrl = `${window.location.origin}/s?t=${activeTemplate.id}&c=${encodedColors}&s=${currentStep}&k=${patternKey}`;
-    }
-    
+    if (!currentGalleryDocId) return;
+    const shareUrl = `${window.location.origin}/og/${currentGalleryDocId}`;
+
     navigator.clipboard.writeText(shareUrl).then(() => {
       showToast(TRANSLATIONS[currentLang].toastShareUrl);
     }).catch(() => {
@@ -1830,15 +1847,49 @@ function loadExportData(data) {
 }
 
 
+async function loadPatternByDocId(docId) {
+  try {
+    const docSnap = await getDoc(doc(db, 'patterns', docId));
+    if (!docSnap.exists()) return;
+
+    const data = docSnap.data();
+    const tmpl = KUMIHIMO_TEMPLATES.find(t => t.id === data.templateId);
+    if (!tmpl) return;
+
+    templateSelect.value = tmpl.id;
+    loadTemplate(tmpl, data.colors);
+
+    while (currentStep < MAX_STEPS) {
+      disk.weaveRowFast();
+      currentStep = disk.rowIndex;
+    }
+    updatePlaybackUI();
+    renderAll();
+
+    currentGalleryDocId = docSnap.id;
+    btnShareUrl.disabled = false;
+    btnShareUrl.title = currentLang === 'ko' ? '공유 링크 복사 / Copy Share URL' : 'Copy Share Link / 공유 링크 복사';
+    urlPatternLoaded = true;
+    showToast(currentLang === 'ko' ? "공유된 패턴을 불러왔습니다!" : "Successfully loaded shared pattern!");
+  } catch (e) {
+    console.warn('Failed to load pattern by docId:', e);
+  }
+}
+
 // Check for parameters in the URL to restore sharing state
 function checkUrlParams() {
   const params = new URLSearchParams(window.location.search);
-  // Support both short (t/c/s/k) and legacy (tmpl/colors/step/key) param names
+  const docId = params.get('d');
   const tmplId = params.get('t') || params.get('tmpl');
   const colorsRaw = params.get('c');
   const colorsLegacy = params.get('colors');
   const stepParam = params.get('s') || params.get('step');
   let stepSet = false;
+
+  if (docId) {
+    loadPatternByDocId(docId);
+    return true;
+  }
 
   if (tmplId) {
     const tmpl = KUMIHIMO_TEMPLATES.find(t => t.id === tmplId);
@@ -2223,6 +2274,7 @@ function renderSidebarCard(pattern) {
     document.querySelectorAll('.sidebar-pattern-card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
     loadPatternToSimulator(pattern);
+    history.replaceState(null, '', `${window.location.pathname}?d=${encodeURIComponent(pattern.id)}`);
   });
 
   return card;
@@ -2349,6 +2401,8 @@ function loadPatternToSimulator(pattern) {
 
   renderAll();
   currentGalleryDocId = pattern.id;
+  btnShareUrl.disabled = false;
+  btnShareUrl.title = currentLang === 'ko' ? '공유 링크 복사 / Copy Share URL' : 'Copy Share Link / 공유 링크 복사';
   setViewedPattern(pattern.id, pattern.likes);
   showToast(currentLang === 'ko' ? '패턴을 불러왔습니다!' : 'Pattern loaded!');
 }

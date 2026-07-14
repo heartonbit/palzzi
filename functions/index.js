@@ -1,23 +1,26 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const fs = require("fs");
+const path = require("path");
 
 admin.initializeApp();
 const db = admin.firestore();
 
-function encodeColorsCompact(hexParts) {
-  if (!hexParts || hexParts.length === 0) return "";
-  const bytes = hexParts.map((h) => parseInt(h, 16));
-  return Buffer.from(bytes)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+// Cache simulator.html content
+let simulatorHtml = null;
+function getSimulatorHtml() {
+  if (!simulatorHtml) {
+    simulatorHtml = fs.readFileSync(
+      path.join(__dirname, "simulator.html"),
+      "utf-8"
+    );
+  }
+  return simulatorHtml;
 }
 
 function buildOgHtml(docId, pattern, origin) {
   const imageUrl = `${origin}/img/${docId}`;
-  const encodedColors = encodeColorsCompact(pattern.colors);
-  const simulatorUrl = `${origin}/s?t=${encodeURIComponent(pattern.templateId)}&c=${encodedColors}&k=${pattern.patternKey}`;
+  const simulatorUrl = `${origin}/s?d=${docId}`;
 
   return `<!DOCTYPE html>
 <html lang="ko">
@@ -27,7 +30,7 @@ function buildOgHtml(docId, pattern, origin) {
 <title>${pattern.name} — Palzzi</title>
 <meta property="og:type" content="article">
 <meta property="og:title" content="${pattern.name}">
-<meta property="og:description" content="Palzzi 쿠미히모 팔찌 패턴 — 시뮬레이터에서 열어보세요!">
+<meta property="og:description" content="Palzzi Kumihimo braiding pattern — open in Palzzi!">
 <meta property="og:image" content="${imageUrl}">
 <meta property="og:url" content="${origin}/og/${docId}">
 <meta name="twitter:card" content="summary_large_image">
@@ -47,7 +50,7 @@ body{font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-i
 <div class="card">
 <img src="${imageUrl}" alt="${pattern.name}">
 <h2>${pattern.name}</h2>
-<a href="${simulatorUrl}">시뮬레이터에서 열기 →</a>
+<a href="${simulatorUrl}">Open in Palzzi →</a>
 </div>
 </body>
 </html>`;
@@ -57,14 +60,14 @@ body{font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-i
 exports.og = onRequest(
   { region: "us-central1" },
   async (req, res) => {
-    const match = req.path.match(/^\/og\/([A-Za-z0-9]+)$/);
+    const match = req.path.match(/^\/(?:og\/)?([A-Za-z0-9]+)$/);
     if (!match) {
       res.redirect(302, "https://palzzilab.web.app/");
       return;
     }
 
     const docId = match[1];
-    const origin = `${req.protocol}://${req.get("host")}`;
+    const origin = `https://${req.get("X-Forwarded-Host") || req.get("host")}`;
 
     try {
       const docSnap = await db.collection("patterns").doc(docId).get();
@@ -75,10 +78,7 @@ exports.og = onRequest(
 
       const f = docSnap.data();
       const pattern = {
-        name: f.nameKo || f.templateName || "Palzzi Pattern",
-        templateId: f.templateId || "",
-        patternKey: f.patternKey || "",
-        colors: (f.colors || []).map((c) => c.replace("#", "")),
+        name: f.nameEn || f.nameKo || f.templateName || "Palzzi Pattern",
       };
 
       res.set("Content-Type", "text/html; charset=utf-8");
@@ -95,7 +95,7 @@ exports.og = onRequest(
 exports.img = onRequest(
   { region: "us-central1" },
   async (req, res) => {
-    const match = req.path.match(/^\/img\/([A-Za-z0-9]+)$/);
+    const match = req.path.match(/^\/(?:img\/)?([A-Za-z0-9]+)$/);
     if (!match) {
       res.status(400).send("Bad request");
       return;
@@ -122,5 +122,42 @@ exports.img = onRequest(
       console.error("Image function error:", err);
       res.redirect(302, "/palzzi_logo.png");
     }
+  }
+);
+
+// Simulator page with dynamic OG tags when ?d= is present
+exports.simulator = onRequest(
+  { region: "us-central1" },
+  async (req, res) => {
+    const docId = req.query.d;
+    let html = getSimulatorHtml();
+
+    if (docId && /^[A-Za-z0-9]+$/.test(docId)) {
+      try {
+        const docSnap = await db.collection("patterns").doc(docId).get();
+        if (docSnap.exists) {
+          const f = docSnap.data();
+          const name = f.nameEn || f.nameKo || f.templateName || "Palzzi Pattern";
+          const origin = `https://${req.get("X-Forwarded-Host") || req.get("host")}`;
+          const imageUrl = `${origin}/img/${docId}`;
+
+          const ogTags = `<meta property="og:type" content="article">
+<meta property="og:title" content="${name} — Palzzi">
+<meta property="og:description" content="Palzzi Kumihimo braiding pattern — open in Palzzi!">
+<meta property="og:image" content="${imageUrl}">
+<meta property="og:url" content="${origin}/simulator?d=${docId}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${name} — Palzzi">
+<meta name="twitter:image" content="${imageUrl}">`;
+
+          html = html.replace("<head>", `<head>\n${ogTags}`);
+        }
+      } catch (err) {
+        console.error("Simulator OG injection error:", err);
+      }
+    }
+
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
   }
 );

@@ -104,6 +104,45 @@ Vitest를 활용하여 수학적 원형 회전 치환 알고리즘의 무오류 
 npm test
 ```
 
+### 5. Firebase 로컬 환경 포함하여 실행하기
+
+프로덕션 Firebase 프로젝트(`palzzilab`)에 연결하지 않고 **로컬에서만** 전체 스택(Firestore, Functions)을 실행하려면 Firebase Emulators를 사용합니다.
+
+#### 사전 준비
+- **Firebase CLI** 설치: `npm install -g firebase-tools`
+- **Java 11+** 설치 (Emulator 실행에 필요): [Adoptium](https://adoptium.net/) 또는 `sudo apt install openjdk-17-jre`
+- 프로젝트 Firebase 앱과 연결: `firebase use --add` (기존 `palzzilab` 프로젝트 선택)
+
+#### 1) 환경 변수 설정
+`.env.example`을 복사하여 `.env` 파일을 생성합니다.
+```bash
+cp .env.example .env
+```
+AdSense 값은 로컬 개발 시 필수 아니므로 기본값 그대로 두어도 됩니다.
+
+#### 2) Functions 의존성 설치
+```bash
+cd functions && npm install && cd ..
+```
+
+#### 3) Emulator 초기 설정 (최초 1회)
+```bash
+firebase init emulators
+```
+- **Firestore Emulator** 및 **Functions Emulator** 선택
+- 포트는 기본값 사용 권장 (Firestore: `8088`, Functions: `5001`)
+- Emulator UI 사용 여부: **Y** (포트 `4000` — 브라우저에서 상태 확인 가능)
+
+#### 4) Emulator와 함께 개발 서버 실행
+```bash
+firebase emulators:exec "npm run dev"
+```
+`firebase emulators:exec`는 Firebase Emulator를 자동으로 시작하고, 자식 프로세스(`npm run dev`)에 `FIRESTORE_EMULATOR_HOST` 등의 환경변수를 설정합니다. `src/firebase/config.js`에서는 Vite `define`으로 주입된 이 환경변수를 감지하여 `connectFirestoreEmulator()`를 호출, 로컬 Emulator로 연결합니다.
+
+> **참고:** Firebase JS SDK의 자동 감지(`getDefaultEmulatorHostnameAndPort`)는 Node.js 환경에서만 동작합니다. 브라우저에서는 Vite의 `define`으로 환경변수를 주입하더라도 자동 연결이 되지 않으므로, `config.js`에서 명시적으로 `connectFirestoreEmulator()` / `connectAuthEmulator()`를 호출합니다.
+
+*Emulator UI는 `http://localhost:4401`에서 확인할 수 있습니다.*
+
 ---
 
 ## 🚀 배포 (Deployment)

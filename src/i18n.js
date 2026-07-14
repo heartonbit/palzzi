@@ -4,7 +4,7 @@
  */
 export const TRANSLATIONS = {
   ko: {
-    title: "Palzzi - 쿠미히모 2D 시뮬레이터",
+    title: "Palzzi - 쿠미히모 팔찌 디자인",
     logoTitle: "Palzzi",
     jsonSave: "JSON 저장",
     jsonLoad: "JSON 불러오기",
@@ -89,7 +89,7 @@ export const TRANSLATIONS = {
     presetEditedMsg: "수정 완료!",
     galleryLink: "갤러리",
     saveGalleryBtn: "저장",
-    toastSaveGallery: "갤러리에 저장되었습니다!",
+    toastSaveGallery: "저장 완료! 이제 공유 링크를 만들 수 있습니다.",
     toastSaveGalleryError: "갤러리 저장에 실했습니다.",
     galleryPatternName: "내 쿠미히모 패턴",
     savePatternPrompt: "패턴 이름을 입력하세요:",
@@ -115,7 +115,7 @@ export const TRANSLATIONS = {
     toastLikeError: "좋아요 처리에 실패했습니다.",
     // Gallery page
     galleryTitle: "Palzzi - 쿠미히모 패턴 갤러리",
-    backToSimulator: "시뮬레이터로",
+    backToSimulator: "Palzzi로",
     galleryHeading: "쿠미히모 패턴 갤러리",
     gallerySubtitle: "저장된 쿠미히모 패턴을 감상하고 클릭하여 상세 정보를 확인하세요.",
     loadingPatterns: "패턴을 불러오는 중...",
@@ -125,7 +125,7 @@ export const TRANSLATIONS = {
     metaPatternName: "패턴 이름",
     metaCreatedAt: "생성일",
     colorSwatches: "사용 색상",
-    loadToSimulator: "시뮬레이터에서 열기",
+    loadToSimulator: "Palzzi에서 열기",
     deletePattern: "패턴 삭제",
     confirmDelete: "이 패턴을 삭제하시겠습니까?",
     deleteSuccess: "패턴이 삭제되었습니다.",
@@ -137,7 +137,7 @@ export const TRANSLATIONS = {
     signInToSave: "로그인 후 저장 가능",
   },
   en: {
-    title: "Palzzi - Kumihimo 2D Simulator",
+    title: "Palzzi - Kumihimo Bracelet Designer",
     logoTitle: "Palzzi",
     jsonSave: "Save JSON",
     jsonLoad: "Load JSON",
@@ -222,7 +222,7 @@ export const TRANSLATIONS = {
     presetEditedMsg: "updated successfully!",
     galleryLink: "Gallery",
     saveGalleryBtn: "Save",
-    toastSaveGallery: "Saved to gallery!",
+    toastSaveGallery: "Saved! You can now create a share link.",
     toastSaveGalleryError: "Failed to save to gallery.",
     galleryPatternName: "My Kumihimo Pattern",
     savePatternPrompt: "Enter pattern name:",
@@ -248,7 +248,7 @@ export const TRANSLATIONS = {
     toastLikeError: "Failed to process like.",
     // Gallery page
     galleryTitle: "Palzzi - Kumihimo Pattern Gallery",
-    backToSimulator: "To Simulator",
+    backToSimulator: "To Palzzi",
     galleryHeading: "Kumihimo Pattern Gallery",
     gallerySubtitle: "Browse Kumihimo patterns. Click a card to see details.",
     loadingPatterns: "Loading patterns...",
@@ -258,7 +258,7 @@ export const TRANSLATIONS = {
     metaPatternName: "Pattern Name",
     metaCreatedAt: "Created At",
     colorSwatches: "Colors Used",
-    loadToSimulator: "Open in Simulator",
+    loadToSimulator: "Open in Palzzi",
     deletePattern: "Delete Pattern",
     confirmDelete: "Are you sure you want to delete this pattern?",
     deleteSuccess: "Pattern deleted successfully.",

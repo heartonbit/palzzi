@@ -5,6 +5,18 @@
   "functions": {
     "source": "functions"
   },
+  "emulators": {
+    "firestore": {
+      "port": 8088
+    },
+    "functions": {
+      "port": 5001
+    },
+    "hub": {
+      "host": "127.0.0.1",
+      "port": 4401
+    }
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -23,11 +35,11 @@
       },
       {
         "source": "/s",
-        "destination": "/simulator.html"
+        "function": "simulator"
       },
       {
         "source": "/simulator{,/**}",
-        "destination": "/simulator.html"
+        "function": "simulator"
       },
       {
         "source": "/admin{,/**}",
