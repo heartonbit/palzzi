@@ -48,7 +48,11 @@ export default defineConfig(({ mode }) => {
       input: {
         main: resolve(__dirname, 'index.html'),
         simulator: resolve(__dirname, 'simulator.html'),
+        misanga: resolve(__dirname, 'misanga.html'),
         admin: resolve(__dirname, 'admin.html'),
+        about: resolve(__dirname, 'about.html'),
+        privacy: resolve(__dirname, 'privacy.html'),
+        terms: resolve(__dirname, 'terms.html'),
       },
     },
   },
@@ -102,8 +106,20 @@ export default defineConfig(({ mode }) => {
         if (req.url === '/simulator' || req.url === '/simulator/') {
           req.url = '/simulator.html';
         }
+        if (req.url === '/misanga' || req.url === '/misanga/') {
+          req.url = '/misanga.html';
+        }
         if (req.url === '/admin' || req.url === '/admin/') {
           req.url = '/admin.html';
+        }
+        if (req.url === '/about' || req.url === '/about/') {
+          req.url = '/about.html';
+        }
+        if (req.url === '/privacy' || req.url === '/privacy/') {
+          req.url = '/privacy.html';
+        }
+        if (req.url === '/terms' || req.url === '/terms/') {
+          req.url = '/terms.html';
         }
         next();
       });

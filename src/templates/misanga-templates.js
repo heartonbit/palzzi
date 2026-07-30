@@ -1,0 +1,66 @@
+/**
+ * Preset templates for Misanga (friendship bracelet) patterns.
+ * Each template defines a pattern type and default colors.
+ */
+export const MISANGA_TEMPLATES = [
+  {
+    id: "misanga-4-diagonal",
+    name_ko: "4줄 사선 줄무늬",
+    name_en: "4-String Diagonal Stripe",
+    strings: 4,
+    patternType: "diagonal",
+    desc_ko: "모든 매듭을 앞으로 묶어 사선 방향으로 줄무늬가 생기는 기본 패턴입니다.",
+    desc_en: "All forward knots create diagonal stripe lines. The basic Misanga pattern.",
+    defaultColors: ["#e63946", "#f4a261", "#2a9d8f", "#264653"],
+  },
+  {
+    id: "misanga-4-chevron",
+    name_ko: "4줄 V자 쉐브론",
+    name_en: "4-String Chevron",
+    strings: 4,
+    patternType: "chevron",
+    desc_ko: "가운데에서 바깥으로 묶어 V자 형태를 만드는 패턴입니다.",
+    desc_en: "Knots toward the outside create a V-shaped chevron pattern.",
+    defaultColors: ["#e63946", "#f4a261", "#f4a261", "#e63946"],
+  },
+  {
+    id: "misanga-4-diamond",
+    name_ko: "4줄 다이아몬드",
+    name_en: "4-String Diamond",
+    strings: 4,
+    patternType: "diamond",
+    desc_ko: "쉐브론과 역쉐브론을 번갈아 사용하여 다이아몬드 형태를 만듭니다.",
+    desc_en: "Alternating chevron and reverse chevron creates diamond shapes.",
+    defaultColors: ["#264653", "#2a9d8f", "#2a9d8f", "#264653"],
+  },
+  {
+    id: "misanga-4-flat",
+    name_ko: "4줄 지그재그",
+    name_en: "4-String Zigzag",
+    strings: 4,
+    patternType: "flat",
+    desc_ko: "앞·뒤 매듭을 번갈아 사용하여 지그재그 무늬를 만듭니다.",
+    desc_en: "Alternating forward and backward knots create a zigzag pattern.",
+    defaultColors: ["#6a994e", "#bc4749", "#bc4749", "#6a994e"],
+  },
+  {
+    id: "misanga-4-candy",
+    name_ko: "4줄 캔디 스트라이프",
+    name_en: "4-String Candy Stripe",
+    strings: 4,
+    patternType: "diagonal",
+    desc_ko: "밝은 색상의 조합으로 사선 캔디 줄무늬를 만듭니다.",
+    desc_en: "Bright color combo creating diagonal candy stripes.",
+    defaultColors: ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff"],
+  },
+  {
+    id: "misanga-4-ocean",
+    name_ko: "4줄 오션 웨이브",
+    name_en: "4-String Ocean Wave",
+    strings: 4,
+    patternType: "diamond",
+    desc_ko: "바다 색상의 조합으로 파도 같은 다이아몬드 패턴을 만듭니다.",
+    desc_en: "Ocean-colored diamond pattern resembling waves.",
+    defaultColors: ["#0077b6", "#00b4d8", "#00b4d8", "#0077b6"],
+  },
+];

@@ -31,6 +31,7 @@ let userIsAdmin = false;
 let currentUserLikes = new Set();
 let anonLikes = new Set();
 let gallerySortMode = 'newest';
+let galleryStyleMode = 'all';
 
 // --- DOM Elements ---
 const authArea = document.getElementById('auth-area');
@@ -52,6 +53,7 @@ const detailColorList = document.getElementById('detail-color-list');
 const btnLoadSimulator = document.getElementById('btn-load-simulator');
 const btnDeletePattern = document.getElementById('btn-delete-pattern');
 const gallerySortSelect = document.getElementById('gallery-sort');
+const galleryStyleFilter = document.getElementById('gallery-style-filter');
 const btnDetailLike = document.getElementById('btn-detail-like');
 const detailLikeCount = document.getElementById('detail-like-count');
 
@@ -406,7 +408,11 @@ async function fetchPatterns() {
 
     patterns = [];
     snapshot.forEach(docSnap => {
-      patterns.push({ id: docSnap.id, ...docSnap.data() });
+      const data = { id: docSnap.id, ...docSnap.data() };
+      // Filter by style
+      const style = data.style || 'kumihimo';
+      if (galleryStyleMode !== 'all' && style !== galleryStyleMode) return;
+      patterns.push(data);
     });
 
     if (patterns.length === 0) {
@@ -417,7 +423,6 @@ async function fetchPatterns() {
     }
   } catch (err) {
     console.error('Error fetching patterns:', err);
-    // For development: if Firestore is not configured, show empty state with a hint
     if (err.code === 'failed-precondition' || err.message.includes('projectId')) {
       showState('empty');
     } else {
@@ -461,12 +466,17 @@ function renderGallery() {
     const isLiked = isPatternLiked(pattern.id);
     const likeIconClass = 'fa-solid fa-heart';
     const likedClass = isLiked ? ' liked' : '';
+    const patternStyle = pattern.style || 'kumihimo';
+    const styleBadge = patternStyle === 'misanga'
+      ? `<span class="card-style-badge misanga-badge"><i class="fa-solid fa-grip-lines"></i> ${t.misangaShort || 'Misanga'}</span>`
+      : `<span class="card-style-badge kumihimo-badge"><i class="fa-solid fa-circle-notch"></i> ${t.kumihimoShort || 'Kumihimo'}</span>`;
 
     card.innerHTML = `
       <div class="card-preview">
         ${pattern.snapshotBase64
           ? `<img src="${pattern.snapshotBase64}" alt="${patternName}" class="card-snapshot" width="320" height="200">`
           : `<canvas width="320" height="200"></canvas>`}
+        ${styleBadge}
         <button class="card-like-btn${likedClass}" data-pattern-id="${pattern.id}" title="${t.likeLabel}" aria-label="${t.likeLabel}">
           <i class="${likeIconClass}"></i>
         </button>
@@ -766,7 +776,12 @@ function setupEventListeners() {
   // Load pattern to simulator
   btnLoadSimulator.addEventListener('click', () => {
     if (!selectedPattern) return;
-    window.location.href = `/simulator?d=${selectedPattern.id}`;
+    const style = selectedPattern.style || 'kumihimo';
+    if (style === 'misanga') {
+      window.location.href = `/misanga?d=${selectedPattern.id}`;
+    } else {
+      window.location.href = `/simulator?d=${selectedPattern.id}`;
+    }
   });
 
   // Delete pattern
@@ -807,11 +822,29 @@ function setupEventListeners() {
     });
   }
 
+  // Style filter dropdown
+  if (galleryStyleFilter) {
+    galleryStyleFilter.addEventListener('change', () => {
+      galleryStyleMode = galleryStyleFilter.value;
+      fetchPatterns();
+    });
+  }
+
   // Detail panel like button
   if (btnDetailLike) {
     btnDetailLike.addEventListener('click', () => {
       if (selectedPattern) toggleLike(selectedPattern.id);
     });
+  }
+
+  // Create modal
+  const btnCreateNew = document.getElementById('btn-create-new');
+  const createModal = document.getElementById('create-modal');
+  const createModalClose = document.getElementById('create-modal-close');
+  if (btnCreateNew && createModal) {
+    btnCreateNew.addEventListener('click', () => createModal.classList.remove('hidden'));
+    createModalClose?.addEventListener('click', () => createModal.classList.add('hidden'));
+    createModal.addEventListener('click', (e) => { if (e.target === createModal) createModal.classList.add('hidden'); });
   }
 }
 

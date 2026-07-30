@@ -5,662 +5,574 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Braid Visualization Dev Tool</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #1a1a2e;
-      color: #eee;
-      min-height: 100vh;
-      padding: 20px;
+      background: #1a1a2e; color: #eee; min-height: 100vh; padding: 20px;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 10px;
-      font-size: 1.5rem;
-      color: #fff;
+    h1 { text-align: center; margin-bottom: 10px; font-size: 1.5rem; color: #fff; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 0.9rem; }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex; justify-content: center; gap: 4px; margin-bottom: 20px;
     }
-    .subtitle {
-      text-align: center;
-      color: #888;
-      margin-bottom: 20px;
-      font-size: 0.9rem;
+    .tab-btn {
+      padding: 10px 28px; border: none; border-radius: 8px 8px 0 0;
+      background: #16213e; color: #888; font-weight: bold; font-size: 0.95rem;
+      cursor: pointer; transition: background 0.2s, color 0.2s;
     }
+    .tab-btn:hover { background: #1a3a5c; color: #ccc; }
+    .tab-btn.active { background: #0f3460; color: #4ecca3; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Shared controls ── */
     .global-controls {
-      background: #16213e;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      align-items: center;
-      justify-content: center;
+      background: #16213e; border-radius: 8px; padding: 15px; margin-bottom: 20px;
+      display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center;
     }
-    .control-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .control-group label {
-      font-size: 0.75rem;
-      color: #aaa;
-      text-transform: uppercase;
-    }
-    .control-group input[type="range"] {
-      width: 100px;
-    }
+    .control-group { display: flex; flex-direction: column; gap: 4px; }
+    .control-group label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; }
+    .control-group input[type="range"] { width: 100px; }
     .control-group input[type="number"],
     .control-group select {
-      width: 70px;
-      padding: 4px 8px;
-      border: 1px solid #333;
-      border-radius: 4px;
-      background: #0f3460;
-      color: #fff;
-      font-size: 0.85rem;
+      width: 70px; padding: 4px 8px; border: 1px solid #333;
+      border-radius: 4px; background: #0f3460; color: #fff; font-size: 0.85rem;
     }
-    .control-group .value-display {
-      font-size: 0.8rem;
-      color: #4ecca3;
-      font-weight: bold;
-    }
+    .control-group .value-display { font-size: 0.8rem; color: #4ecca3; font-weight: bold; }
+
     button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      background: #4ecca3;
-      color: #1a1a2e;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-      font-size: 0.85rem;
+      padding: 8px 16px; border: none; border-radius: 4px;
+      background: #4ecca3; color: #1a1a2e; font-weight: bold;
+      cursor: pointer; transition: background 0.2s; font-size: 0.85rem;
     }
-    button:hover {
-      background: #45b393;
-    }
-    button.secondary {
-      background: #0f3460;
-      color: #fff;
-    }
-    button.secondary:hover {
-      background: #1a4a7a;
-    }
-    button.small {
-      padding: 4px 10px;
-      font-size: 0.75rem;
-    }
+    button:hover { background: #45b393; }
+    button.secondary { background: #0f3460; color: #fff; }
+    button.secondary:hover { background: #1a4a7a; }
+    button.small { padding: 4px 10px; font-size: 0.75rem; }
+
     .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 15px;
-      max-width: 1600px;
-      margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 15px; max-width: 1600px; margin: 0 auto;
     }
     .card {
-      background: #16213e;
-      border-radius: 8px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background: #16213e; border-radius: 8px; padding: 12px;
+      display: flex; flex-direction: column; align-items: center;
     }
-    .card h3 {
-      font-size: 0.95rem;
-      margin-bottom: 8px;
-      color: #fff;
-    }
-    .card canvas {
-      background: #f8f9fa;
-      border-radius: 4px;
-      width: 100%;
-      max-width: 280px;
-      height: 180px;
-    }
+    .card h3 { font-size: 0.95rem; margin-bottom: 8px; color: #fff; }
+    .card canvas { background: #f8f9fa; border-radius: 4px; }
+    .card .kumihimo-canvas { width: 100%; max-width: 280px; height: 180px; }
+    .card .canvas-row { display: flex; gap: 8px; }
+    .card .knot-canvas { width: 200px; height: 240px; }
+    .card .result-canvas { width: 140px; height: 240px; }
     .card .controls {
-      background: #0f3460;
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 10px;
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      background: #0f3460; border-radius: 6px; padding: 10px; margin-top: 10px;
+      width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
     .card .controls .control-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      justify-content: space-between;
+      display: flex; align-items: center; gap: 6px; justify-content: space-between;
     }
-    .card .controls label {
-      font-size: 0.7rem;
-      color: #aaa;
-      min-width: 50px;
-    }
-    .card .controls input[type="range"] {
-      flex: 1;
-      width: 80px;
-    }
-    .card .controls input[type="number"] {
-      width: 50px;
-      padding: 2px 4px;
-      font-size: 0.8rem;
-    }
+    .card .controls label { font-size: 0.7rem; color: #aaa; min-width: 55px; }
+    .card .controls input[type="range"] { flex: 1; width: 80px; }
     .card .controls .value-display {
-      font-size: 0.75rem;
-      color: #4ecca3;
-      font-weight: bold;
-      min-width: 35px;
-      text-align: right;
+      font-size: 0.75rem; color: #4ecca3; font-weight: bold; min-width: 35px; text-align: right;
     }
     .card .info {
-      margin-top: 8px;
-      font-size: 0.75rem;
-      color: #888;
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      justify-content: center;
+      margin-top: 8px; font-size: 0.75rem; color: #888;
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
     }
-    .card .info span {
-      background: #0f3460;
-      padding: 2px 6px;
-      border-radius: 3px;
-    }
+    .card .info span { background: #0f3460; padding: 2px 6px; border-radius: 3px; }
+    .card-buttons { display: flex; gap: 6px; margin-top: 8px; }
+
     .formula {
-      background: #0f3460;
-      padding: 10px 15px;
-      border-radius: 6px;
-      margin-bottom: 20px;
-      font-family: 'Consolas', monospace;
-      font-size: 0.85rem;
-      text-align: center;
-      color: #4ecca3;
-      line-height: 1.5;
+      background: #0f3460; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px;
+      font-family: 'Consolas', monospace; font-size: 0.85rem; text-align: center;
+      color: #4ecca3; line-height: 1.5;
     }
-    .formula code {
-      color: #ffd93d;
-    }
-    .card-buttons {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
+    .formula code { color: #ffd93d; }
+
+    .section-label {
+      text-align: center; color: #4ecca3; font-size: 1.1rem;
+      margin: 20px 0 10px; font-weight: bold;
     }
   </style>
 </head>
 <body>
   <h1>🧵 Braid Visualization Dev Tool</h1>
-  <p class="subtitle">Per-card parameter tuning for each thread count (Fixed strand width)</p>
+  <p class="subtitle">Per-card parameter tuning for Kumihimo & Misanga patterns</p>
 
-  <div class="formula" id="formula-display">
-    radius = <code id="disp-rad-base">7.5</code> × (nThreads / 8) ^ <code id="disp-rad-exp">0.70</code><br>
-    pitch = radius × <code id="disp-pitch-ratio">0.159</code> × (nThreads / 8) ^ <code id="disp-pitch-exp">0.30</code>
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="kumihimo">🪢 Kumihimo</button>
+    <button class="tab-btn" data-tab="misanga">🪡 Misanga</button>
   </div>
 
-  <div class="global-controls">
-    <div class="control-group">
-      <label>Canvas Height</label>
-      <input type="number" id="canvas-height" min="100" max="500" step="10" value="300">
+  <!-- ═══════════════ KUMIHIMO TAB ═══════════════ -->
+  <div id="tab-kumihimo" class="tab-panel active">
+    <p class="subtitle">Per-card parameter tuning for each thread count (Fixed strand width)</p>
+
+    <div class="formula" id="formula-display">
+      radius = <code id="disp-rad-base">7.5</code> × (nThreads / 8) ^ <code id="disp-rad-exp">0.70</code><br>
+      pitch = radius × <code id="disp-pitch-ratio">0.159</code> × (nThreads / 8) ^ <code id="disp-pitch-exp">0.30</code>
     </div>
-    <div class="control-group">
-      <label>Strand Width (Fixed)</label>
-      <input type="number" id="global-strand-width" min="1" max="15" step="0.5" value="8">
-    </div>
-    <div class="control-group">
-      <label>Pitch Multiplier</label>
-      <input type="number" id="global-pitch-multiplier" min="0.1" max="10" step="0.1" value="3.0">
-    </div>
-    <div class="control-group">
-      <label>Color Mode</label>
-      <select id="color-mode">
-        <option value="simple">Simple (2 colors)</option>
-        <option value="complex" selected>Complex (multi)</option>
-      </select>
-    </div>
-    <div class="control-group">
-      <label>Effects</label>
-      <div style="display:flex;flex-direction:column;gap:2px;">
-        <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="fx-depth-width"> Depth Width</label>
-        <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="fx-shadow"> Front Shadow</label>
-        <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="fx-contrast"> Contrast</label>
+
+    <div class="global-controls">
+      <div class="control-group">
+        <label>Canvas Height</label>
+        <input type="number" id="k-canvas-height" min="100" max="500" step="10" value="300">
       </div>
+      <div class="control-group">
+        <label>Strand Width (Fixed)</label>
+        <input type="number" id="k-strand-width" min="1" max="15" step="0.5" value="8">
+      </div>
+      <div class="control-group">
+        <label>Pitch Multiplier</label>
+        <input type="number" id="k-pitch-multiplier" min="0.1" max="10" step="0.1" value="3.0">
+      </div>
+      <div class="control-group">
+        <label>Color Mode</label>
+        <select id="k-color-mode">
+          <option value="simple">Simple (2 colors)</option>
+          <option value="complex" selected>Complex (multi)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Effects</label>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="k-fx-depth-width"> Depth Width</label>
+          <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="k-fx-shadow"> Front Shadow</label>
+          <label style="font-size:0.8rem;color:#ccc;cursor:pointer;"><input type="checkbox" id="k-fx-contrast"> Contrast</label>
+        </div>
+      </div>
+      <button id="k-btn-copy-prev">Copy from Previous</button>
+      <button id="k-btn-copy-all">Copy First to All</button>
+      <button class="secondary" id="k-btn-reset">Reset All</button>
     </div>
-    <button id="btn-copy-from-prev">Copy from Previous</button>
-    <button id="btn-copy-all">Copy First to All</button>
-    <button class="secondary" id="btn-reset">Reset All</button>
+
+    <div class="grid" id="k-grid"></div>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <!-- ═══════════════ MISANGA TAB ═══════════════ -->
+  <div id="tab-misanga" class="tab-panel">
+    <p class="subtitle">Per-card parameter tuning for misanga knot patterns</p>
+
+    <div class="global-controls">
+      <div class="control-group">
+        <label>Canvas Height</label>
+        <input type="number" id="m-canvas-height" min="100" max="500" step="10" value="240">
+      </div>
+      <div class="control-group">
+        <label>Knot Radius</label>
+        <input type="number" id="m-knot-radius" min="3" max="20" step="1" value="8">
+      </div>
+      <div class="control-group">
+        <label>String Width</label>
+        <input type="number" id="m-string-width" min="1" max="10" step="0.5" value="4">
+      </div>
+      <div class="control-group">
+        <label>Row Spacing</label>
+        <input type="number" id="m-row-spacing" min="15" max="60" step="1" value="30">
+      </div>
+      <div class="control-group">
+        <label>Steps</label>
+        <input type="number" id="m-steps" min="4" max="100" step="2" value="20">
+      </div>
+      <div class="control-group">
+        <label>Color Mode</label>
+        <select id="m-color-mode">
+          <option value="template">Template Colors</option>
+          <option value="simple">Simple (2 colors)</option>
+          <option value="multi" selected>Multi (4+ colors)</option>
+        </select>
+      </div>
+      <button id="m-btn-copy-first">Copy First to All</button>
+      <button class="secondary" id="m-btn-reset">Reset All</button>
+    </div>
+
+    <div id="m-cards-container"></div>
+  </div>
 
   <script type="module">
     import { KumihimoDisk } from './src/engine/kumihimo.js';
+    import { MisangaLoom } from './src/engine/misanga.js';
+    import { MISANGA_TEMPLATES } from './src/templates/misanga-templates.js';
     import {
       RADIUS_BASE, RADIUS_EXPONENT, PITCH_RATIO, PITCH_EXPONENT,
       PITCH_MULTIPLIER, VSTRETCH_BASE, VSTRETCH_EXPONENT, STRAND_WIDTH,
       LIGHTING_MIN, LIGHTING_RANGE
     } from './src/braid-config.js';
 
-    // Thread color palette
+    // ── Shared palette ──
     const COLOR_PALETTE = [
-      '#e63946', '#f4a261', '#2a9d8f', '#264653',
-      '#e76f51', '#f28482', '#84a59d', '#f2cc8f',
-      '#6a994e', '#bc4749', '#386641', '#540b0e',
-      '#6930c3', '#5e60ce', '#5390d9', '#4ea8de',
-      '#48cae4', '#90e0ef', '#ade8f4', '#caf0f8',
-      '#ff9e00', '#ff6d00', '#ff3d00', '#d50000',
-      '#aa00ff', '#651fff', '#304ffe', '#00b0ff',
+      '#e63946','#f4a261','#2a9d8f','#264653','#e76f51','#f28482','#84a59d','#f2cc8f',
+      '#6a994e','#bc4749','#386641','#540b0e','#6930c3','#5e60ce','#5390d9','#4ea8de',
+      '#48cae4','#90e0ef','#ade8f4','#caf0f8','#ff9e00','#ff6d00','#ff3d00','#d50000',
+      '#aa00ff','#651fff','#304ffe','#00b0ff',
     ];
 
-    const TEST_CONFIGS = [8, 12, 16, 20, 24, 28, 32];
+    // ══════════════════════════════════════════════
+    //  TAB SWITCHING
+    // ══════════════════════════════════════════════
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
 
-    // Default parameters (from shared config)
-    const DEFAULTS = {
-      radiusBase: RADIUS_BASE,
-      radiusExponent: RADIUS_EXPONENT,
-      pitchRatio: PITCH_RATIO,
-      pitchExponent: PITCH_EXPONENT,
-      vStretchBase: VSTRETCH_BASE,
-      vStretchExponent: VSTRETCH_EXPONENT,
-      lightingMin: LIGHTING_MIN,
-      lightingRange: LIGHTING_RANGE,
+    // ══════════════════════════════════════════════
+    //  KUMIHIMO TAB
+    // ══════════════════════════════════════════════
+    const K_CONFIGS = [8, 12, 16, 20, 24, 28, 32];
+    const K_DEFAULTS = {
+      radiusBase: RADIUS_BASE, radiusExponent: RADIUS_EXPONENT,
+      pitchRatio: PITCH_RATIO, pitchExponent: PITCH_EXPONENT,
+      vStretchBase: VSTRETCH_BASE, vStretchExponent: VSTRETCH_EXPONENT,
+      lightingMin: LIGHTING_MIN, lightingRange: LIGHTING_RANGE,
     };
 
-    let canvasHeight = 300;
-    let globalStrandWidth = STRAND_WIDTH;
-    let globalPitchMultiplier = PITCH_MULTIPLIER;
-    let colorMode = 'complex';
-    let fxDepthWidth = false;
-    let fxShadow = false;
-    let fxContrast = false;
-    let cardStates = {};
+    let kCanvasHeight = 300, kStrandWidth = STRAND_WIDTH, kPitchMult = PITCH_MULTIPLIER;
+    let kColorMode = 'complex', kFxDepth = false, kFxShadow = false, kFxContrast = false;
+    let kStates = {};
 
-    function initCardStates() {
-      cardStates = {};
-      TEST_CONFIGS.forEach(nThreads => {
-        cardStates[nThreads] = { ...DEFAULTS };
-      });
+    function kInitStates() {
+      kStates = {};
+      K_CONFIGS.forEach(n => { kStates[n] = { ...K_DEFAULTS }; });
     }
 
-    const grid = document.getElementById('grid');
-    const canvasHeightInput = document.getElementById('canvas-height');
-    const globalStrandWidthInput = document.getElementById('global-strand-width');
-    const globalPitchMultiplierInput = document.getElementById('global-pitch-multiplier');
-    const btnCopyFromPrev = document.getElementById('btn-copy-from-prev');
-    const btnCopyAll = document.getElementById('btn-copy-all');
-    const btnReset = document.getElementById('btn-reset');
-    
-    // Formula display elements
-    const dispRadBase = document.getElementById('disp-rad-base');
-    const dispRadExp = document.getElementById('disp-rad-exp');
-    const dispPitchRatio = document.getElementById('disp-pitch-ratio');
-    const dispPitchExp = document.getElementById('disp-pitch-exp');
-
-    // Helper Functions
-    function adjustColorBrightness(hex, factor) {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      const nr = Math.min(255, Math.round(r * factor));
-      const ng = Math.min(255, Math.round(g * factor));
-      const nb = Math.min(255, Math.round(b * factor));
-      return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
+    function kAdjustColor(hex, f) {
+      const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      return `#${Math.min(255,Math.round(r*f)).toString(16).padStart(2,'0')}${Math.min(255,Math.round(g*f)).toString(16).padStart(2,'0')}${Math.min(255,Math.round(b*f)).toString(16).padStart(2,'0')}`;
     }
 
-    function calculateRadius(nThreads, params) {
-      return params.radiusBase * Math.pow(nThreads / 8, params.radiusExponent);
-    }
-
-    function calculatePitch(nThreads, radius, params) {
-      return radius * params.pitchRatio * Math.pow(nThreads / 8, params.pitchExponent) * globalPitchMultiplier;
-    }
-
-    function calculateVStretch(nThreads, params) {
-      return params.vStretchBase * Math.pow(nThreads / 8, params.vStretchExponent);
-    }
-
-    // Drawing Braid
-    function drawBraidPreview(canvas, nThreads, radius, pitch, vStretch, params) {
+    function kDrawBraid(canvas, nThreads, radius, pitch, vStretch, params) {
       const ctx = canvas.getContext('2d');
-      const width = canvas.width;
-      const height = canvas.height;
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = '#f8f9fa'; ctx.fillRect(0,0,W,H);
 
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(0, 0, width, height);
-
-      const threadColors = [];
-      if (colorMode === 'simple') {
-        const simpleColors = ['#e63946', '#264653'];
-        for (let i = 0; i < nThreads; i++) {
-          threadColors.push(simpleColors[i % 2]);
-        }
-      } else {
-        for (let i = 0; i < nThreads; i++) {
-          threadColors.push(COLOR_PALETTE[i % COLOR_PALETTE.length]);
-        }
-      }
+      const colors = kColorMode === 'simple'
+        ? Array.from({length:nThreads},(_,i)=>['#e63946','#264653'][i%2])
+        : Array.from({length:nThreads},(_,i)=>COLOR_PALETTE[i%COLOR_PALETTE.length]);
 
       const disk = new KumihimoDisk(nThreads);
-      disk.init(threadColors);
-
-      const simSteps = Math.min(120, 80);
-      for (let s = 0; s < simSteps; s++) {
-        disk.weaveRowFast();
-      }
-
+      disk.init(colors);
+      for (let s = 0; s < 80; s++) disk.weaveRowFast();
       if (disk.productColors.length <= 1) return;
 
       const startY = 16;
+      const maxRows = Math.floor((H-40)/pitch);
+      const endRow = Math.min(disk.productColors.length, maxRows);
 
-      const maxVisibleRows = Math.floor((height - 40) / pitch);
-      const endRowIdx = Math.min(disk.productColors.length, maxVisibleRows);
-
-      ctx.save();
-      ctx.translate(width / 2, 0);
-
-      const segments = [];
-      for (let r = 1; r < endRowIdx; r++) {
-        const prevRow = disk.productColors[r - 1];
-        const currRow = disk.productColors[r];
-        const prevY = startY + (r - 1) * pitch * vStretch;
-        const currY = startY + r * pitch * vStretch;
-
+      ctx.save(); ctx.translate(W/2, 0);
+      const segs = [];
+      for (let r = 1; r < endRow; r++) {
+        const pR = disk.productColors[r-1], cR = disk.productColors[r];
+        const pY = startY+(r-1)*pitch*vStretch, cY = startY+r*pitch*vStretch;
         for (let i = 0; i < disk.nThreads; i++) {
-          const prevThread = prevRow[i];
-          const currThread = currRow[i];
-          if (!prevThread || !currThread) continue;
-
-          const prevTheta = (prevThread.slot * 2 * Math.PI) / disk.slotsCount - Math.PI / 2;
-          const currTheta = (currThread.slot * 2 * Math.PI) / disk.slotsCount - Math.PI / 2;
-
-          let diff = currTheta - prevTheta;
-          while (diff < -Math.PI) diff += 2 * Math.PI;
-          while (diff > Math.PI) diff -= 2 * Math.PI;
-          const adjustedCurrTheta = prevTheta + diff;
-
-          const prevX = radius * Math.sin(prevTheta);
-          const prevZ = radius * Math.cos(prevTheta);
-          const currX = radius * Math.sin(adjustedCurrTheta);
-          const currZ = radius * Math.cos(adjustedCurrTheta);
-
-          if (prevZ > -radius * 0.7 || currZ > -radius * 0.7) {
-            const avgZ = (prevZ + currZ) / 2;
-            segments.push({
-              color: currThread.color,
-              fx: prevX,
-              fy: prevY,
-              tx: currX,
-              ty: currY,
-              avgZ,
-              prevZ,
-              currZ
-            });
+          const pt = pR[i], ct = cR[i];
+          if (!pt||!ct) continue;
+          const pTh = (pt.slot*2*Math.PI)/disk.slotsCount - Math.PI/2;
+          let cTh = (ct.slot*2*Math.PI)/disk.slotsCount - Math.PI/2;
+          let d = cTh-pTh; while(d<-Math.PI)d+=2*Math.PI; while(d>Math.PI)d-=2*Math.PI;
+          const pX = radius*Math.sin(pTh), pZ = radius*Math.cos(pTh);
+          const cX = radius*Math.sin(pTh+d), cZ = radius*Math.cos(pTh+d);
+          if (pZ > -radius*0.7 || cZ > -radius*0.7) {
+            segs.push({color:ct.color, fx:pX, fy:pY, tx:cX, ty:cY, avgZ:(pZ+cZ)/2});
           }
         }
       }
-
-      segments.sort((a, b) => a.avgZ - b.avgZ);
-
-      segments.forEach(seg => {
-        const zNorm = (seg.avgZ + radius) / (2 * radius);
-
-        let lightingFactor = params.lightingMin + params.lightingRange * zNorm;
-        if (fxContrast) {
-          lightingFactor = 0.3 + 0.9 * zNorm;
-        }
-        const shadedColor = adjustColorBrightness(seg.color, lightingFactor);
-
-        let lw = globalStrandWidth;
-        if (fxDepthWidth) {
-          lw = globalStrandWidth * (0.5 + 0.8 * zNorm);
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(seg.fx, seg.fy);
-        ctx.lineTo(seg.tx, seg.ty);
-        ctx.lineWidth = lw;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = shadedColor;
-        if (fxShadow) {
-          const sBlur = 2 + 5 * zNorm;
-          const sOffY = 1 + 3 * zNorm;
-          ctx.shadowColor = `rgba(0,0,0,${0.1 + 0.35 * zNorm})`;
-          ctx.shadowBlur = sBlur;
-          ctx.shadowOffsetY = sOffY;
-        } else {
-          ctx.shadowColor = 'rgba(0,0,0,0.18)';
-          ctx.shadowBlur = 2.5;
-          ctx.shadowOffsetY = 1;
-        }
+      segs.sort((a,b)=>a.avgZ-b.avgZ);
+      segs.forEach(seg => {
+        const zN = (seg.avgZ+radius)/(2*radius);
+        let lf = kFxContrast ? 0.3+0.9*zN : params.lightingMin+params.lightingRange*zN;
+        let lw = kFxDepth ? kStrandWidth*(0.5+0.8*zN) : kStrandWidth;
+        ctx.beginPath(); ctx.moveTo(seg.fx,seg.fy); ctx.lineTo(seg.tx,seg.ty);
+        ctx.lineWidth = lw; ctx.lineCap = 'round';
+        ctx.strokeStyle = kAdjustColor(seg.color, lf);
+        if (kFxShadow) {
+          ctx.shadowColor=`rgba(0,0,0,${0.1+0.35*zN})`; ctx.shadowBlur=2+5*zN; ctx.shadowOffsetY=1+3*zN;
+        } else { ctx.shadowColor='rgba(0,0,0,0.18)'; ctx.shadowBlur=2.5; ctx.shadowOffsetY=1; }
         ctx.stroke();
       });
-
       ctx.restore();
     }
 
-    function createCard(nThreads) {
+    function kCreateCard(n) {
       const card = document.createElement('div');
-      card.className = 'card';
-
-      const title = document.createElement('h3');
-      title.textContent = `${nThreads} Threads`;
-      card.appendChild(title);
-
+      card.className = 'card'; card.dataset.nthreads = n;
+      card.innerHTML = `<h3>${n} Threads</h3>`;
       const canvas = document.createElement('canvas');
-      canvas.width = 280;
-      canvas.height = canvasHeight;
+      canvas.width = 280; canvas.height = kCanvasHeight;
+      canvas.className = 'kumihimo-canvas';
       card.appendChild(canvas);
 
       const controls = document.createElement('div');
       controls.className = 'controls';
-
-      const params = cardStates[nThreads];
-
-      function createControlRow(label, key, min, max, step) {
-        const row = document.createElement('div');
-        row.className = 'control-row';
-
-        const lbl = document.createElement('label');
-        lbl.textContent = label;
-        row.appendChild(lbl);
-
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = min;
-        slider.max = max;
-        slider.step = step;
-        slider.value = params[key];
-        
-        const val = document.createElement('span');
-        val.className = 'value-display';
-        val.textContent = params[key].toFixed(3);
-
-        slider.addEventListener('input', (e) => {
-          params[key] = parseFloat(e.target.value);
-          val.textContent = params[key].toFixed(3);
-          renderCard(nThreads);
-        });
-        
-        row.appendChild(slider);
-        row.appendChild(val);
-
-        return row;
-      }
-
-      controls.appendChild(createControlRow('Rad Base', 'radiusBase', 5, 40, 0.5));
-      controls.appendChild(createControlRow('Rad Exp', 'radiusExponent', 0.1, 1.5, 0.05));
-      controls.appendChild(createControlRow('Pitch Ratio', 'pitchRatio', 0.05, 0.3, 0.001));
-      controls.appendChild(createControlRow('Pitch Exp', 'pitchExponent', 0.1, 1.5, 0.05));
-      controls.appendChild(createControlRow('VStr Base', 'vStretchBase', 0.5, 5.0, 0.1));
-      controls.appendChild(createControlRow('VStr Exp', 'vStretchExponent', -1.0, 1.5, 0.05));
-      controls.appendChild(createControlRow('Light Min', 'lightingMin', 0.3, 0.7, 0.05));
-      controls.appendChild(createControlRow('Light Range', 'lightingRange', 0.3, 0.6, 0.05));
-
+      const p = kStates[n];
+      [['Rad Base','radiusBase',5,40,0.5],['Rad Exp','radiusExponent',0.1,1.5,0.05],
+       ['Pitch Ratio','pitchRatio',0.05,0.3,0.001],['Pitch Exp','pitchExponent',0.1,1.5,0.05],
+       ['VStr Base','vStretchBase',0.5,5.0,0.1],['VStr Exp','vStretchExponent',-1.0,1.5,0.05],
+       ['Light Min','lightingMin',0.3,0.7,0.05],['Light Range','lightingRange',0.3,0.6,0.05]
+      ].forEach(([lbl,key,min,max,step]) => {
+        const row = document.createElement('div'); row.className = 'control-row';
+        row.innerHTML = `<label>${lbl}</label>`;
+        const sl = document.createElement('input');
+        sl.type='range'; sl.min=min; sl.max=max; sl.step=step; sl.value=p[key];
+        const vl = document.createElement('span'); vl.className='value-display'; vl.textContent=p[key].toFixed(3);
+        sl.addEventListener('input', e => { p[key]=parseFloat(e.target.value); vl.textContent=p[key].toFixed(3); kRenderCard(n); });
+        row.appendChild(sl); row.appendChild(vl); controls.appendChild(row);
+      });
       card.appendChild(controls);
 
-      const info = document.createElement('div');
-      info.className = 'info';
-      card.appendChild(info);
+      const info = document.createElement('div'); info.className = 'info'; card.appendChild(info);
 
-      const buttons = document.createElement('div');
-      buttons.className = 'card-buttons';
-
-      const btnCopyPrev = document.createElement('button');
-      btnCopyPrev.className = 'small secondary';
-      btnCopyPrev.textContent = '← Prev';
-      btnCopyPrev.addEventListener('click', () => copyFromPrevious(nThreads));
-      buttons.appendChild(btnCopyPrev);
-
-      const btnCopyNext = document.createElement('button');
-      btnCopyNext.className = 'small secondary';
-      btnCopyNext.textContent = 'Next →';
-      btnCopyNext.addEventListener('click', () => copyToNext(nThreads));
-      buttons.appendChild(btnCopyNext);
-
-      const btnResetCard = document.createElement('button');
-      btnResetCard.className = 'small secondary';
-      btnResetCard.textContent = 'Reset';
-      btnResetCard.addEventListener('click', () => {
-        cardStates[nThreads] = { ...DEFAULTS };
-        const inputs = card.querySelectorAll('input[type="range"]');
-        const displays = card.querySelectorAll('.value-display');
-        let i = 0;
-        for (const key in DEFAULTS) {
-            inputs[i].value = DEFAULTS[key];
-            displays[i].textContent = DEFAULTS[key].toFixed(3);
-            i++;
-        }
-        renderCard(nThreads);
+      const btns = document.createElement('div'); btns.className = 'card-buttons';
+      [['← Prev',()=>{const i=K_CONFIGS.indexOf(n);if(i>0){kStates[n]={...kStates[K_CONFIGS[i-1]]};kRenderGrid();}}],
+       ['Next →',()=>{const i=K_CONFIGS.indexOf(n);if(i<K_CONFIGS.length-1){kStates[K_CONFIGS[i+1]]={...kStates[n]};kRenderGrid();}}],
+       ['Reset',()=>{
+         kStates[n]={...K_DEFAULTS};
+         const ins=card.querySelectorAll('input[type=range]'),ds=card.querySelectorAll('.value-display');
+         let j=0; for(const k in K_DEFAULTS){ins[j].value=K_DEFAULTS[k];ds[j].textContent=K_DEFAULTS[k].toFixed(3);j++;}
+         kRenderCard(n);
+       }]
+      ].forEach(([txt,fn])=>{
+        const b=document.createElement('button'); b.className='small secondary'; b.textContent=txt;
+        b.addEventListener('click',fn); btns.appendChild(b);
       });
-      buttons.appendChild(btnResetCard);
-
-      card.appendChild(buttons);
-
+      card.appendChild(btns);
       return card;
     }
 
-    function renderCard(nThreads) {
-      const card = grid.querySelector(`[data-nthreads="${nThreads}"]`);
+    function kRenderCard(n) {
+      const card = document.getElementById('k-grid').querySelector(`[data-nthreads="${n}"]`);
       if (!card) return;
-
-      const canvas = card.querySelector('canvas');
-      const info = card.querySelector('.info');
-      
-      const params = cardStates[nThreads];
-      
-      const radius = calculateRadius(nThreads, params);
-      const pitch = calculatePitch(nThreads, radius, params);
-      const vStretch = calculateVStretch(nThreads, params);
-
-      drawBraidPreview(canvas, nThreads, radius, pitch, vStretch, params);
-
-      info.innerHTML = `
-        <span>Radius: <strong>${radius.toFixed(1)}px</strong></span>
+      const canvas = card.querySelector('canvas'), info = card.querySelector('.info'), p = kStates[n];
+      canvas.height = kCanvasHeight;
+      const radius = p.radiusBase*Math.pow(n/8,p.radiusExponent);
+      const pitch = radius*p.pitchRatio*Math.pow(n/8,p.pitchExponent)*kPitchMult;
+      const vS = p.vStretchBase*Math.pow(n/8,p.vStretchExponent);
+      kDrawBraid(canvas, n, radius, pitch, vS, p);
+      info.innerHTML = `<span>Radius: <strong>${radius.toFixed(1)}px</strong></span>
         <span>Pitch: <strong>${pitch.toFixed(2)}px</strong></span>
-        <span>VStretch: <strong>${vStretch.toFixed(2)}</strong></span>
-        <span>Rad Exp: <strong>${params.radiusExponent.toFixed(2)}</strong></span>
-        <span>Pitch Exp: <strong>${params.pitchExponent.toFixed(2)}</strong></span>
-        <span>Rows: <strong>${Math.floor((canvasHeight - 40) / (pitch * vStretch))}</strong></span>
-      `;
+        <span>VStretch: <strong>${vS.toFixed(2)}</strong></span>
+        <span>Rows: <strong>${Math.floor((kCanvasHeight-40)/(pitch*vS))}</strong></span>`;
     }
 
-    function renderGrid() {
+    function kRenderGrid() {
+      const grid = document.getElementById('k-grid');
       grid.innerHTML = '';
-      TEST_CONFIGS.forEach(nThreads => {
-        const card = createCard(nThreads);
-        card.dataset.nthreads = nThreads;
-        grid.appendChild(card);
-        renderCard(nThreads);
-      });
-
-      updateFormulaDisplay();
-    }
-    
-    function updateFormulaDisplay() {
-      const firstParams = cardStates[TEST_CONFIGS[0]];
-      dispRadBase.textContent = firstParams.radiusBase.toFixed(1);
-      dispRadExp.textContent = firstParams.radiusExponent.toFixed(2);
-      dispPitchRatio.textContent = firstParams.pitchRatio.toFixed(3);
-      dispPitchExp.textContent = firstParams.pitchExponent.toFixed(2);
+      K_CONFIGS.forEach(n => { const c = kCreateCard(n); grid.appendChild(c); kRenderCard(n); });
+      const fp = kStates[K_CONFIGS[0]];
+      document.getElementById('disp-rad-base').textContent = fp.radiusBase.toFixed(1);
+      document.getElementById('disp-rad-exp').textContent = fp.radiusExponent.toFixed(2);
+      document.getElementById('disp-pitch-ratio').textContent = fp.pitchRatio.toFixed(3);
+      document.getElementById('disp-pitch-exp').textContent = fp.pitchExponent.toFixed(2);
     }
 
-    function copyFromPrevious(nThreads) {
-      const idx = TEST_CONFIGS.indexOf(nThreads);
-      if (idx <= 0) return;
-      const prevN = TEST_CONFIGS[idx - 1];
-      cardStates[nThreads] = { ...cardStates[prevN] };
-      renderGrid(); 
-    }
-
-    function copyToNext(nThreads) {
-      const idx = TEST_CONFIGS.indexOf(nThreads);
-      if (idx < 0 || idx >= TEST_CONFIGS.length - 1) return;
-      const nextN = TEST_CONFIGS[idx + 1];
-      cardStates[nextN] = { ...cardStates[nThreads] };
-      renderGrid(); 
-    }
-
-    function copyFirstToAll() {
-      const firstParams = { ...cardStates[TEST_CONFIGS[0]] };
-      TEST_CONFIGS.forEach(n => {
-        cardStates[n] = { ...firstParams };
-      });
-      renderGrid();
-    }
-
-    function resetAll() {
-      initCardStates();
-      renderGrid();
-    }
-
-    // Global Event listeners
-    canvasHeightInput.addEventListener('input', (e) => {
-      canvasHeight = parseInt(e.target.value) || 180;
-      TEST_CONFIGS.forEach(n => renderCard(n));
+    // Kumihimo global controls
+    document.getElementById('k-canvas-height').addEventListener('input', e => { kCanvasHeight=parseInt(e.target.value)||180; K_CONFIGS.forEach(n=>kRenderCard(n)); });
+    document.getElementById('k-strand-width').addEventListener('input', e => { kStrandWidth=parseFloat(e.target.value)||6; K_CONFIGS.forEach(n=>kRenderCard(n)); });
+    document.getElementById('k-pitch-multiplier').addEventListener('input', e => { kPitchMult=parseFloat(e.target.value)||1; K_CONFIGS.forEach(n=>kRenderCard(n)); });
+    document.getElementById('k-color-mode').addEventListener('change', e => { kColorMode=e.target.value; K_CONFIGS.forEach(n=>kRenderCard(n)); });
+    ['k-fx-depth-width','k-fx-shadow','k-fx-contrast'].forEach((id,i) => {
+      document.getElementById(id).addEventListener('change', e => { [v=>kFxDepth=v,v=>kFxShadow=v,v=>kFxContrast=v][i](e.target.checked); K_CONFIGS.forEach(n=>kRenderCard(n)); });
     });
-    
-    globalStrandWidthInput.addEventListener('input', (e) => {
-      globalStrandWidth = parseFloat(e.target.value) || 6;
-      TEST_CONFIGS.forEach(n => renderCard(n));
-    });
+    document.getElementById('k-btn-copy-prev').addEventListener('click', () => { for(let i=1;i<K_CONFIGS.length;i++) kStates[K_CONFIGS[i]]={...kStates[K_CONFIGS[i-1]]}; kRenderGrid(); });
+    document.getElementById('k-btn-copy-all').addEventListener('click', () => { const f={...kStates[K_CONFIGS[0]]}; K_CONFIGS.forEach(n=>{kStates[n]={...f};}); kRenderGrid(); });
+    document.getElementById('k-btn-reset').addEventListener('click', () => { kInitStates(); kRenderGrid(); });
 
-    globalPitchMultiplierInput.addEventListener('input', (e) => {
-      globalPitchMultiplier = parseFloat(e.target.value) || 1;
-      TEST_CONFIGS.forEach(n => renderCard(n));
-    });
+    // ══════════════════════════════════════════════
+    //  MISANGA TAB
+    // ══════════════════════════════════════════════
+    const M_PATTERNS = ['diagonal','flat','chevron','diamond'];
+    const M_STRINGS = [4, 6, 8];
 
-    document.getElementById('color-mode').addEventListener('change', (e) => {
-      colorMode = e.target.value;
-      TEST_CONFIGS.forEach(n => renderCard(n));
-    });
+    let mCanvasHeight = 240, mKnotRadius = 8, mStringWidth = 4, mRowSpacing = 30, mSteps = 20, mColorMode = 'multi';
+    const mStates = {};
 
-    function bindFxCheckbox(id, setter) {
-      document.getElementById(id).addEventListener('change', (e) => {
-        setter(e.target.checked);
-        TEST_CONFIGS.forEach(n => renderCard(n));
-      });
+    function mKey(pt, ns) { return `${pt}-${ns}`; }
+
+    function mDefaultColors(ns, pt) {
+      const tmpl = MISANGA_TEMPLATES.find(t => t.patternType === pt && t.strings <= ns);
+      if (tmpl) { const b=[...tmpl.defaultColors]; while(b.length<ns) b.push(b[b.length%tmpl.defaultColors.length]); return b.slice(0,ns); }
+      return COLOR_PALETTE.slice(0, ns);
     }
-    bindFxCheckbox('fx-depth-width', v => fxDepthWidth = v);
-    bindFxCheckbox('fx-shadow', v => fxShadow = v);
-    bindFxCheckbox('fx-contrast', v => fxContrast = v);
 
-    btnCopyFromPrev.addEventListener('click', () => {
-      for (let i = 1; i < TEST_CONFIGS.length; i++) {
-        cardStates[TEST_CONFIGS[i]] = { ...cardStates[TEST_CONFIGS[i - 1]] };
+    function mGetColors(ns, pt) {
+      if (mColorMode === 'simple') return Array.from({length:ns},(_,i)=>['#e63946','#264653'][i%2]);
+      if (mColorMode === 'template') return mDefaultColors(ns, pt);
+      return COLOR_PALETTE.slice(0, ns);
+    }
+
+    function mInitStates() {
+      M_PATTERNS.forEach(pt => M_STRINGS.forEach(ns => {
+        mStates[mKey(pt,ns)] = { knotRadius: mKnotRadius, stringWidth: mStringWidth, rowSpacing: mRowSpacing, stringSpacing: 40 };
+      }));
+    }
+
+    function mDrawKnotChart(canvas, nStrings, patternType, steps, params) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0,0,W,H); ctx.fillStyle='#f8f9fa'; ctx.fillRect(0,0,W,H);
+
+      const colors = mGetColors(nStrings, patternType);
+      const margin = 20, usableW = W-margin*2, sSpacing = usableW/(nStrings-1), rSp = params.rowSpacing;
+
+      for (let i = 0; i < nStrings; i++) {
+        ctx.beginPath(); ctx.arc(margin+i*sSpacing, 10, 6, 0, Math.PI*2);
+        ctx.fillStyle = colors[i]; ctx.fill();
+        ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.stroke();
       }
-      renderGrid();
-    });
 
-    btnCopyAll.addEventListener('click', copyFirstToAll);
-    btnReset.addEventListener('click', resetAll);
+      const posHist = [{}]; for(let i=0;i<nStrings;i++) posHist[0][i]=i;
 
-    // Initialize
-    initCardStates();
-    renderGrid();
+      for (let r = 0; r < steps; r++) {
+        const dirs = MisangaLoom.getPatternDirections(patternType, r, nStrings);
+        const prev = posHist[posHist.length-1];
+        const tmp = {...prev};
+        for(let k=0;k<dirs.length;k+=2){let a=-1,b=-1;for(const[t,p]of Object.entries(tmp)){if(p===k)a=+t;if(p===k+1)b=+t;}if(a>=0&&b>=0){tmp[a]=k+1;tmp[b]=k;}}
+        for(let k=1;k<dirs.length;k+=2){let a=-1,b=-1;for(const[t,p]of Object.entries(tmp)){if(p===k)a=+t;if(p===k+1)b=+t;}if(a>=0&&b>=0){tmp[a]=k+1;tmp[b]=k;}}
+        posHist.push(tmp);
+
+        const y1=18+r*rSp, y2=y1+rSp, yM=(y1+y2)/2;
+        for(let k=0;k<dirs.length;k++){
+          const xL=margin+k*sSpacing, xR=margin+(k+1)*sSpacing;
+          let lC='#ccc',rC='#ccc';
+          for(const[t,p]of Object.entries(prev)){if(p===k)lC=colors[+t];if(p===k+1)rC=colors[+t];}
+
+          if(dirs[k]==='F'){
+            ctx.beginPath();ctx.moveTo(xL,y1);ctx.quadraticCurveTo((xL+xR)/2,yM,xR,y2);
+            ctx.strokeStyle=lC;ctx.lineWidth=params.stringWidth;ctx.lineCap='round';ctx.stroke();
+            ctx.beginPath();ctx.moveTo(xR,y1);ctx.quadraticCurveTo((xL+xR)/2,yM+3,xL,y2);
+            ctx.strokeStyle=rC;ctx.lineWidth=params.stringWidth*0.7;ctx.stroke();
+          } else {
+            ctx.beginPath();ctx.moveTo(xR,y1);ctx.quadraticCurveTo((xL+xR)/2,yM,xL,y2);
+            ctx.strokeStyle=rC;ctx.lineWidth=params.stringWidth;ctx.lineCap='round';ctx.stroke();
+            ctx.beginPath();ctx.moveTo(xL,y1);ctx.quadraticCurveTo((xL+xR)/2,yM+3,xR,y2);
+            ctx.strokeStyle=lC;ctx.lineWidth=params.stringWidth*0.7;ctx.stroke();
+          }
+          ctx.beginPath();ctx.arc((xL+xR)/2,yM,params.knotRadius,0,Math.PI*2);
+          ctx.fillStyle=dirs[k]==='F'?lC:rC;ctx.fill();
+          ctx.strokeStyle='#555';ctx.lineWidth=0.8;ctx.stroke();
+          ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(7,params.knotRadius)}px sans-serif`;
+          ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(dirs[k],(xL+xR)/2,yM);
+        }
+      }
+    }
+
+    function mDrawResult(canvas, nStrings, patternType, steps, params) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0,0,W,H); ctx.fillStyle='#f8f9fa'; ctx.fillRect(0,0,W,H);
+
+      const colors = mGetColors(nStrings, patternType);
+      const loom = new MisangaLoom(nStrings);
+      loom.init(colors);
+      for(let r=0;r<steps;r++) loom.tieRow(MisangaLoom.getPatternDirections(patternType,r,nStrings));
+
+      const margin=10, uW=W-margin*2, sW=uW/nStrings;
+      const rH = Math.max(2,(H-margin*2)/Math.max(steps,1));
+      for(let r=0;r<loom.productColors.length&&r<steps+1;r++){
+        const row=loom.productColors[r];
+        for(let p=0;p<row.length;p++){
+          ctx.fillStyle=row[p].color;
+          ctx.fillRect(margin+p*sW, margin+r*rH, sW, rH+0.5);
+        }
+      }
+      ctx.fillStyle='rgba(0,0,0,0.5)';ctx.font='10px sans-serif';ctx.textAlign='center';
+      ctx.fillText('Result',W/2,H-3);
+    }
+
+    function mCreateCard(pt, ns) {
+      const key = mKey(pt, ns);
+      const card = document.createElement('div');
+      card.className = 'card'; card.dataset.key = key;
+      card.innerHTML = `<h3>${pt} · ${ns} strings</h3>`;
+
+      const cRow = document.createElement('div'); cRow.className = 'canvas-row';
+      const kc = document.createElement('canvas'); kc.className='knot-canvas'; kc.width=200; kc.height=mCanvasHeight;
+      const rc = document.createElement('canvas'); rc.className='result-canvas'; rc.width=140; rc.height=mCanvasHeight;
+      cRow.appendChild(kc); cRow.appendChild(rc); card.appendChild(cRow);
+
+      const controls = document.createElement('div'); controls.className = 'controls';
+      const p = mStates[key];
+      [['Knot R','knotRadius',3,20,1],['Str Width','stringWidth',1,10,0.5],
+       ['Row Space','rowSpacing',15,60,1],['Str Space','stringSpacing',20,80,2]
+      ].forEach(([lbl,prop,min,max,step])=>{
+        const row=document.createElement('div');row.className='control-row';
+        row.innerHTML=`<label>${lbl}</label>`;
+        const sl=document.createElement('input');sl.type='range';sl.min=min;sl.max=max;sl.step=step;sl.value=p[prop];
+        const vl=document.createElement('span');vl.className='value-display';vl.textContent=Number(p[prop]).toFixed(1);
+        sl.addEventListener('input',e=>{p[prop]=parseFloat(e.target.value);vl.textContent=Number(p[prop]).toFixed(1);mRenderCard(key);});
+        row.appendChild(sl);row.appendChild(vl);controls.appendChild(row);
+      });
+      card.appendChild(controls);
+
+      const info = document.createElement('div'); info.className='info'; card.appendChild(info);
+
+      const btns = document.createElement('div'); btns.className='card-buttons';
+      [['+10',()=>{mSteps+=10;document.getElementById('m-steps').value=mSteps;mRenderAll();}],
+       ['-10',()=>{mSteps=Math.max(4,mSteps-10);document.getElementById('m-steps').value=mSteps;mRenderAll();}]
+      ].forEach(([t,fn])=>{const b=document.createElement('button');b.className='small secondary';b.textContent=t;b.addEventListener('click',fn);btns.appendChild(b);});
+      card.appendChild(btns);
+      return card;
+    }
+
+    function mRenderCard(key) {
+      const card = document.querySelector(`[data-key="${key}"]`);
+      if (!card) return;
+      const [pt, nsS] = key.split('-');
+      const ns = parseInt(nsS), p = mStates[key];
+      const kc = card.querySelector('.knot-canvas'), rc = card.querySelector('.result-canvas');
+      const info = card.querySelector('.info');
+      kc.height = mCanvasHeight; rc.height = mCanvasHeight;
+      mDrawKnotChart(kc, ns, pt, mSteps, p);
+      mDrawResult(rc, ns, pt, mSteps, p);
+
+      const loom = new MisangaLoom(ns);
+      loom.init(mGetColors(ns, pt));
+      for(let r=0;r<mSteps;r++) loom.tieRow(MisangaLoom.getPatternDirections(pt,r,ns));
+      info.innerHTML = `<span>Rows: <strong>${loom.rowIndex}</strong></span>
+        <span>Strings: <strong>${ns}</strong></span>
+        <span>Pattern: <strong>${pt}</strong></span>
+        <span>Cycle: <strong>${loom.cycleLength||'—'}</strong></span>`;
+    }
+
+    function mRenderAll() {
+      const container = document.getElementById('m-cards-container');
+      container.innerHTML = '';
+      M_PATTERNS.forEach(pt => {
+        const label = document.createElement('div');
+        label.className = 'section-label';
+        label.textContent = `── ${pt.charAt(0).toUpperCase()+pt.slice(1)} ──`;
+        container.appendChild(label);
+        const grid = document.createElement('div'); grid.className = 'grid';
+        M_STRINGS.forEach(ns => { const c = mCreateCard(pt,ns); grid.appendChild(c); mRenderCard(mKey(pt,ns)); });
+        container.appendChild(grid);
+      });
+    }
+
+    // Misanga global controls
+    document.getElementById('m-canvas-height').addEventListener('input', e => { mCanvasHeight=parseInt(e.target.value)||240; mRenderAll(); });
+    document.getElementById('m-knot-radius').addEventListener('input', e => { mKnotRadius=parseFloat(e.target.value)||8; Object.values(mStates).forEach(s=>s.knotRadius=mKnotRadius); mRenderAll(); });
+    document.getElementById('m-string-width').addEventListener('input', e => { mStringWidth=parseFloat(e.target.value)||4; Object.values(mStates).forEach(s=>s.stringWidth=mStringWidth); mRenderAll(); });
+    document.getElementById('m-row-spacing').addEventListener('input', e => { mRowSpacing=parseInt(e.target.value)||30; Object.values(mStates).forEach(s=>s.rowSpacing=mRowSpacing); mRenderAll(); });
+    document.getElementById('m-steps').addEventListener('input', e => { mSteps=parseInt(e.target.value)||20; mRenderAll(); });
+    document.getElementById('m-color-mode').addEventListener('change', e => { mColorMode=e.target.value; mRenderAll(); });
+    document.getElementById('m-btn-copy-first').addEventListener('click', () => { const f={...mStates[mKey(M_PATTERNS[0],M_STRINGS[0])]}; Object.keys(mStates).forEach(k=>{mStates[k]={...f};}); mRenderAll(); });
+    document.getElementById('m-btn-reset').addEventListener('click', () => { mInitStates(); mRenderAll(); });
+
+    // ══════════════════════════════════════════════
+    //  INIT
+    // ══════════════════════════════════════════════
+    kInitStates();
+    kRenderGrid();
+    mInitStates();
+    mRenderAll();
   </script>
 </body>
 </html>

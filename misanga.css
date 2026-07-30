@@ -1,0 +1,61 @@
+/* Misanga Simulator - Additional Styles */
+
+/* Knot editor canvas cursor */
+#knot-canvas {
+  cursor: pointer;
+}
+
+/* Sidebar card for misanga patterns */
+.sidebar-card {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sidebar-card:hover {
+  background: #f0f0f2;
+}
+
+.sidebar-snapshot {
+  width: 64px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-no-preview {
+  width: 64px;
+  height: 40px;
+  background: #e5e5ea;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sidebar-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.sidebar-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-card-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+}

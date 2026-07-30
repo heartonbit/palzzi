@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Palzzi 미산가 팔찌 시뮬레이터 — 온라인에서 미산가(프렌드십 팔찌) 패턴을 디자인하고 3D로 미리보세요.">
+  <title data-i18n="misangaTitle">Palzzi - 미산가 팔찌 디자인</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="misanga.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <div class="logo-group">
+        <a href="/" class="logo-link">
+          <div class="logo">
+            <img src="/logo.png" alt="Palzzi" class="logo-img">
+            <h1><span class="logo-text" data-i18n="logoTitle">Palzzi</span></h1>
+          </div>
+        </a>
+        <div class="lang-selector" id="lang-selector">
+          <button id="btn-lang-toggle" class="btn-lang-globe" title="Language">
+            <i class="fa-solid fa-globe"></i>
+          </button>
+          <div class="lang-popup hidden" id="lang-popup">
+            <button id="btn-lang-ko" class="lang-option active">한국어</button>
+            <button id="btn-lang-en" class="lang-option">English</button>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div id="auth-area" class="auth-area"></div>
+        <div class="dropdown">
+          <div id="export-dropdown-menu" class="dropdown-menu hidden">
+            <button id="btn-export-png-braid" class="dropdown-item">
+              <i class="fa-solid fa-image"></i> <span data-i18n="pngBraid">완성본 (PNG)</span>
+            </button>
+            <button id="btn-export-json" class="dropdown-item">
+              <i class="fa-solid fa-file-code"></i> <span data-i18n="jsonSave">JSON 저장</span>
+            </button>
+            <button id="btn-import-json-trigger" class="dropdown-item">
+              <i class="fa-solid fa-file-import"></i> <span data-i18n="jsonLoad">JSON 불러오기</span>
+            </button>
+          </div>
+        </div>
+        <input type="file" id="input-import-json" accept=".json" style="display: none;">
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+
+      <!-- Left Gallery Sidebar -->
+      <aside class="gallery-sidebar">
+        <div class="sidebar-header">
+          <h3 data-i18n="sidebarTitle"><i class="fa-solid fa-images"></i> 패턴 갤러리</h3>
+          <select id="sidebar-sort" class="sidebar-sort-select">
+            <option value="newest" data-i18n="sortNewest">최신순</option>
+            <option value="mostLiked" data-i18n="sortMostLiked">좋아요 많은 순</option>
+          </select>
+        </div>
+        <div class="sidebar-list" id="sidebar-pattern-list">
+          <div class="sidebar-sentinel" id="sidebar-sentinel"></div>
+          <div class="sidebar-loading hidden" id="sidebar-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> <span data-i18n="sidebarLoading">불러오는 중...</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center: Knot Editor -->
+      <section class="workspace-center">
+
+        <!-- Template Selector -->
+        <div class="template-bar">
+          <select id="template-select" class="form-control">
+            <!-- Dynamically populated -->
+          </select>
+          <span id="template-desc" class="template-desc-inline"></span>
+          <span id="meta-strings" class="tag"><i class="fa-solid fa-braille"></i> 4 가닥</span>
+        </div>
+
+        <!-- 2D Knot Editor Canvas -->
+        <div class="disk-canvas-container">
+          <canvas id="knot-canvas" width="480" height="480"></canvas>
+
+          <!-- Color Popup -->
+          <div id="color-popup" class="color-popup hidden">
+            <div class="popup-header">
+              <span id="popup-title" data-i18n="popupTitle">실 색상 선택</span>
+              <button id="popup-close" class="popup-close-btn">&times;</button>
+            </div>
+            <div id="popup-presets" class="popup-presets"></div>
+            <div class="popup-divider"></div>
+            <div class="popup-custom">
+              <div class="popup-picker-row">
+                <input type="color" id="popup-color-picker" value="#FF5733">
+                <input type="text" id="popup-color-hex" class="form-control popup-hex-input" value="#FF5733" maxlength="7">
+              </div>
+              <div class="popup-name-row">
+                <input type="text" id="popup-color-name" class="form-control popup-name-input" data-i18n-placeholder="popupNamePlaceholder" placeholder="새 색상 이름" maxlength="20">
+                <button id="popup-save-btn" class="btn btn-sm btn-success" data-i18n="popupSaveBtn">저장</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weave Controls -->
+          <div class="weave-button-container">
+            <button id="btn-weave" class="btn-weave" title="Weave">
+              <i class="fa-solid fa-arrows-spin"></i> Weave
+            </button>
+            <button id="btn-settings" class="btn btn-secondary btn-settings-inline" title="설정">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="disk-action-buttons">
+            <button id="btn-save-gallery" class="btn btn-success" title="갤러리에 저장">
+              <i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="saveGalleryBtn">저장</span>
+            </button>
+            <button id="btn-share-url" class="btn btn-warning" disabled title="저장 후 공유 링크 생성 가능">
+              <i class="fa-solid fa-share-nodes"></i> <span data-i18n="shareUrlBtn">공유</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: 3D Preview -->
+      <aside class="dual-viewer">
+        <div class="view-contents">
+          <div id="tab-finished" class="tab-content active">
+            <div class="canvas-wrapper" style="position:relative;align-items:stretch;">
+              <div id="misanga-3d-container" style="width:100%;flex:1;"></div>
+              <div class="zoom-controls">
+                <button id="btn-zoom-in" class="zoom-btn" title="Zoom In">+</button>
+                <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out">−</button>
+              </div>
+              <button id="btn-like" class="like-btn" title="Like" aria-label="Like">
+                <i class="fa-regular fa-heart"></i>
+              </button>
+            </div>
+            <div class="preview-info-bar">
+              <span id="preview-like-count" class="preview-like-count">
+                <i class="fa-solid fa-heart"></i> <span>0</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content settings-modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear"></i> <span data-i18n="settingsTitle">설정</span></h3>
+        <button id="settings-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <section class="settings-section">
+          <h4 data-i18n="settings3DDisplay"><i class="fa-solid fa-cube"></i> 3D 브레이드 표시</h4>
+          <div class="settings-row">
+            <label for="settings-3d-tube-radius" data-i18n="tubeRadiusLabel">실 굵기:</label>
+            <div class="settings-slider-row">
+              <input type="range" id="settings-3d-tube-radius" min="0.05" max="0.30" step="0.01" value="0.15" class="zoom-slider">
+              <span id="settings-3d-tube-radius-val" class="zoom-value">0.15</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label for="settings-3d-steps" data-i18n="steps3DLabel">표시 스텝 수:</label>
+            <div class="settings-slider-row">
+              <input type="range" id="settings-3d-steps" min="20" max="500" step="10" value="200" class="zoom-slider">
+              <span id="settings-3d-steps-val" class="zoom-value">200</span>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label for="settings-string-spacing" data-i18n="stringSpacingLabel">실 간격:</label>
+            <div class="settings-slider-row">
+              <input type="range" id="settings-string-spacing" min="0.6" max="2.5" step="0.1" value="1.2" class="zoom-slider">
+              <span id="settings-string-spacing-val" class="zoom-value">1.2</span>
+            </div>
+          </div>
+        </section>
+        <section class="settings-section">
+          <button id="btn-reset-3d-render" class="btn btn-secondary w-100" data-i18n="reset3DRenderParams">3D 렌더링 초기화</button>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <nav class="footer-links">
+      <a href="/about" data-i18n="footerAbout">소개</a>
+      <a href="/simulator" data-i18n="footerSimulator">시뮬레이터</a>
+      <a href="/" data-i18n="footerGallery">갤러리</a>
+      <a href="/privacy" data-i18n="footerPrivacy">개인정보처리방침</a>
+      <a href="/terms" data-i18n="footerTerms">이용약관</a>
+    </nav>
+    <p class="footer-copy">© 2025 Palzzi. All rights reserved.</p>
+  </footer>
+
+  <div id="toast-message" class="toast hidden">상태 메시지</div>
+
+  <!-- Preset Management Modal -->
+  <div id="preset-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-palette"></i> <span data-i18n="presetModalTitle">컬러 프리셋 관리</span></h3>
+        <button id="modal-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-form">
+          <h4 id="form-title" data-i18n="presetFormTitleAdd">새 프리셋 추가</h4>
+          <div class="form-group">
+            <label for="modal-preset-hex" data-i18n="presetColorLabel">색상 선택 (Color Picker)</label>
+            <div class="picker-row">
+              <input type="color" id="modal-preset-color" value="#007AFF">
+              <input type="text" id="modal-preset-hex" class="form-control" value="#007AFF" maxlength="7">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="modal-preset-name" data-i18n="presetNameLabel">색상 이름</label>
+            <input type="text" id="modal-preset-name" class="form-control" data-i18n-placeholder="presetNamePlaceholder" placeholder="예: 아쿠아 블루" value="애플 블루">
+          </div>
+          <div class="form-actions-row">
+            <button id="btn-modal-save" class="btn btn-primary w-100" data-i18n="presetSaveBtn">저장</button>
+            <button id="btn-modal-cancel-edit" class="btn btn-secondary w-100 mt-2 hidden" data-i18n="presetCancelEditBtn">수정 취소</button>
+          </div>
+        </div>
+        <div class="modal-list-wrapper">
+          <h4 data-i18n="presetListTitle">프리셋 목록</h4>
+          <div id="modal-preset-list" class="modal-preset-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-modal-close-done" class="btn btn-success" data-i18n="presetModalCloseDone">완료 및 닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/misanga-main.js"></script>
+</body>
+</html>

@@ -860,3 +860,115 @@ body {
   color: #bbb;
   padding: 8px 0;
 }
+
+/* ── Footer ── */
+.site-footer {
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  padding: 24px;
+  text-align: center;
+  margin-top: auto;
+}
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.footer-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--primary-color); }
+.footer-copy {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Style Badge ── */
+.card-style-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+.kumihimo-badge {
+  background: rgba(0, 122, 255, 0.85);
+  color: #fff;
+}
+.misanga-badge {
+  background: rgba(52, 199, 89, 0.85);
+  color: #fff;
+}
+
+/* ── Create Type Modal ── */
+.create-modal-content {
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 420px;
+  max-width: 90vw;
+  overflow: hidden;
+}
+.create-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.create-type-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--text-main);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  cursor: pointer;
+}
+.create-type-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+  transform: translateY(-1px);
+}
+.create-type-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+#create-kumihimo .create-type-icon {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--primary-color);
+}
+#create-misanga .create-type-icon {
+  background: rgba(52, 199, 89, 0.1);
+  color: var(--success-color);
+}
+.create-type-info h4 {
+  margin: 0 0 2px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.create-type-info p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}

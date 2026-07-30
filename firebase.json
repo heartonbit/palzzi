@@ -42,8 +42,24 @@
         "function": "simulator"
       },
       {
+        "source": "/misanga{,/**}",
+        "destination": "/misanga.html"
+      },
+      {
         "source": "/admin{,/**}",
         "destination": "/admin.html"
+      },
+      {
+        "source": "/about{,/**}",
+        "destination": "/about.html"
+      },
+      {
+        "source": "/privacy{,/**}",
+        "destination": "/privacy.html"
+      },
+      {
+        "source": "/terms{,/**}",
+        "destination": "/terms.html"
       },
       {
         "source": "**",
