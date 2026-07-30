@@ -34,8 +34,8 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg-base);
   color: var(--text-main);
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -43,7 +43,7 @@ body {
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   width: 100vw;
 }
 
@@ -92,7 +92,7 @@ body {
   grid-template-columns: 280px 1fr 350px;
   grid-template-rows: 1fr;
   flex: 1;
-  height: calc(100vh - 65px);
+  min-height: calc(100vh - 65px - 80px);
   overflow: hidden;
 }
 
@@ -1529,4 +1529,31 @@ body {
   font-size: 11px;
   color: #bbb;
   padding: 8px 0;
+}
+
+/* ── Footer ── */
+.site-footer {
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  padding: 24px;
+  text-align: center;
+  margin-top: auto;
+}
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.footer-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--primary-color); }
+.footer-copy {
+  font-size: 12px;
+  color: var(--text-muted);
 }

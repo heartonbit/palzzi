@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://palzzilab.web.app/sitemap.xml

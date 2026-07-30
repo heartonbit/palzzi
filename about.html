@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Palzzi — 쿠미히모 팔찌 디자인 웹 도구. 온라인에서 쉽게 매듭 패턴을 만들고, 3D로 미리보고, 커뮤니티와 공유하세요.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Palzzi — 쿠미히모 팔찌 디자인 도구">
+  <meta property="og:description" content="온라인 쿠미히모 시뮬레이터로 나만의 팔찌 패턴을 디자인하고 3D로 미리보세요.">
+  <meta property="og:image" content="/palzzi_logo.png">
+  <link rel="icon" href="/favicon.ico">
+  <title data-i18n-title="aboutPageTitle">Palzzi — 쿠미히모 팔찌 디자인 도구 소개</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="logo-group">
+        <a href="/" class="logo-link">
+          <div class="logo">
+            <img src="/logo.png" alt="Palzzi" class="logo-img">
+            <h1><span class="logo-text" data-i18n="logoTitle">Palzzi</span></h1>
+          </div>
+        </a>
+        <div class="lang-selector" id="lang-selector">
+          <button id="btn-lang-toggle" class="btn-lang-globe" title="Language">
+            <i class="fa-solid fa-globe"></i>
+          </button>
+          <div class="lang-popup hidden" id="lang-popup">
+            <button id="btn-lang-ko" class="lang-option active">한국어</button>
+            <button id="btn-lang-en" class="lang-option">English</button>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="/simulator" class="btn-lang-globe" style="text-decoration:none;font-size:14px;padding:8px 16px;">
+          <i class="fa-solid fa-plus"></i> <span data-i18n="startCreating">만들기</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- ─────────── Korean Content ─────────── -->
+    <div class="content-ko">
+      <main class="content-area">
+
+        <div class="page-header">
+          <h2 data-i18n="aboutHeading">Palzzi 소개</h2>
+          <p class="subtitle" data-i18n="aboutSubtitle">쿠미히모 팔찌를 온라인에서 쉽게 디자인하고 공유하세요</p>
+        </div>
+
+        <!-- 서비스 소개 -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-sparkles"></i> Palzzi란?</h3>
+          <p>
+            <strong>Palzzi(팔찌)</strong>는 전통 일본 매듭 공예인 <strong>쿠미히모(Kumihimo)</strong>를
+            현대적으로 재해석한 웹 기반 팔찌 디자인 도구입니다. 복잡한 매듭 패턴을 직접 짜보고,
+            3D 미리보기로 완성 모습을 확인하며, 나만의 디자인을 커뮤니티와 공유할 수 있습니다.
+          </p>
+          <p>
+            기존 쿠미히모 도안은 종이나 전용 소프트웨어로 작업해야 했지만, Palzzi는
+            브라우저에서 바로 사용할 수 있어 별도 프로그램 설치 없이 누구나 쉽게
+            팔찌 패턴을 디자인할 수 있습니다.
+          </p>
+          <div class="info-box">
+            <p><i class="fa-solid fa-lightbulb"></i> Palzzi는 완전히 무료이며, 회원가입 없이도 시뮬레이터를 사용할 수 있습니다.</p>
+          </div>
+        </section>
+
+        <!-- 쿠미히모란? -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-circle-info"></i> 쿠미히모(Kumihimo)란?</h3>
+          <p>
+            쿠미히모(組み紐)는 일본 전통의 편조(編組) 공예로, 여러 가닥의 실을
+            정해진 순서대로 교차하며 땋아 올리는 기법입니다. 천 년 이상의 역사를 가진
+            이 공예는 원래 갑옷의 끈, 오비지메(帯締め), 장신구 등을 만드는 데
+            사용되었습니다.
+          </p>
+          <p>
+            현대에는 팔찌, 목걸이, 키홀더 등 다양한 액세서리를 만드는 취미 공예로
+            널리 사랑받고 있습니다. 특히 <strong>마루다이(Marudai)</strong>라는 원형
+            틀에 디스크를 올려놓고 실을 이동시키는 방식이 가장 대중적입니다.
+          </p>
+          <p>
+            Palzzi는 이 쿠미히모의 매듭 구조를 디지털로 구현하여, 실제 실로 짜기 전에
+            패턴을 미리 확인하고 색상 조합을 자유롭게 시도해 볼 수 있게 해줍니다.
+          </p>
+        </section>
+
+        <!-- 주요 기능 -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-wand-magic-sparkles"></i> 주요 기능</h3>
+          <ul>
+            <li><strong>인터랙티브 디스크 시뮬레이터:</strong> 실제 마루다이 디스크처럼 화면에서 실을 이동하며 매듭을 짤 수 있습니다. 직관적인 클릭 기반 인터페이스로 초보자도 쉽게 사용할 수 있습니다.</li>
+            <li><strong>3D 브레이드 미리보기:</strong> 짜고 있는 패턴을 실시간 3D로 확인하세요. 실제 팔찌와 유사한 렌더링으로 완성 모습을 미리 볼 수 있습니다. 회전, 확대/축소도 가능합니다.</li>
+            <li><strong>2D 도안 차트:</strong> 매듭의 구조를 도안 차트로 확인하고, PNG로 내보낼 수 있습니다. 실제 제작 시 참고할 수 있는 정확한 도안을 제공합니다.</li>
+            <li><strong>다양한 템플릿:</strong> 8가닥, 12가닥 등 다양한 디스크 템플릿을 제공하여 초보자부터 숙련자까지 만족합니다.</li>
+            <li><strong>색상 커스텀:</strong> 수백 가지 프리셋 색상과 직접 색상 선택기로 나만의 색상 조합을 만들 수 있습니다.</li>
+            <li><strong>패턴 갤러리:</strong> 디자인한 패턴을 갤러리에 저장하고 다른 사용자의 작품도 구경할 수 있습니다. 좋아요로 마음에 드는 패턴에 응원을 보내세요.</li>
+            <li><strong>공유 링크:</strong> 나만의 패턴을 URL로 공유할 수 있습니다. 친구에게 디자인을 보여줄 때 유용합니다.</li>
+            <li><strong>다국어 지원:</strong> 한국어와 영어를 지원합니다.</li>
+          </ul>
+        </section>
+
+        <!-- 사용 방법 -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-book-open"></i> 사용 방법</h3>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <p><strong>템플릿 선택:</strong> 상단 템플릿 바에서 원하는 디스크 템플릿을 선택합니다. 8가닥 초보자용부터 12가닥 이상 고급 템플릿까지 사용할 수 있습니다.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>색상 지정:</strong> 디스크 위의 실 슬롯이나 색상 리스트에서 색상을 클릭하여 각 가닥의 색상을 설정합니다. 프리셋에서 선택하거나 직접 색상을 만들 수 있습니다.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>직조(Weave):</strong> 'Weave' 버튼을 눌러 매듭을 짭니다. 한 스텝씩 진행하거나 자동 재생으로 전체 패턴을 한 번에 완성할 수 있습니다.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>3D / 2D 확인:</strong> 우측 패널에서 3D 브레이드 미리보기와 2D 도안 차트를 전환하며 확인합니다. 3D 뷰에서는 회전과 확대/축소로 다양한 각도에서 확인할 수 있습니다.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>저장 및 공유:</strong> 마음에 드는 패턴이 완성되면 갤러리에 저장하고, 공유 링크를 복사하여 다른 사람에게 보여주세요.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 실 종류 가이드 -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-palette"></i> 실 종류와 특징</h3>
+          <p>쿠미히모에는 다양한 종류의 실을 사용할 수 있습니다. 각 실의 특징을 이해하면 더 좋은 작품을 만들 수 있습니다.</p>
+          <h4>자수실 (Embroidery Thread)</h4>
+          <p>
+            가장 대중적인 쿠미히모 실로, 광택이 있고 다양한 색상이 제공됩니다.
+            25번수(25wt)가 가장 많이 사용되며, 얇고 매끄러운 질감이 정교한 패턴에 적합합니다.
+            DMC, Anchor 등 유명 브랜드에서 400가지 이상의 색상을 구할 수 있습니다.
+          </p>
+          <h4>마크라메실 (Macramé Cord)</h4>
+          <p>
+            자수실보다 굵고 질감이 있는 실로, 굵은 팔찌나 키홀더에 적합합니다.
+            면 소재가 자연스러운 느낌을 주며, 와이어가 포함된 실은 형태 유지에 유리합니다.
+          </p>
+          <h4>실크사 (Silk Thread)</h4>
+          <p>
+            고급스러운 광택과 부드러운 질감이 특징입니다. 전통적인 쿠미히모에서
+            주로 사용되며, 명품 액세서리 제작에 적합합니다. 다만 가격이 높고
+            관리가 조심스러워야 합니다.
+          </p>
+          <h4>합성 섬유 (Synthetic Fiber)</h4>
+          <p>
+            나일론, 폴리에스터 등 합성 소재의 실은 내구성이 좋고 가격이 저렴합니다.
+            다양한 굵기와 질감이 있으며, 일상용 액세서리에 적합합니다.
+          </p>
+        </section>
+
+        <!-- 색상 조합 팁 -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-swatchbook"></i> 색상 조합 팁</h3>
+          <p>아름다운 쿠미히모 팔찌를 만들기 위한 색상 조합 방법을 소개합니다.</p>
+          <h4>보색 조합 (Complementary)</h4>
+          <p>
+            색상환에서 반대편에 위치한 색상끼리 조합하면 강렬하고 눈에 띄는 팔찌가 됩니다.
+            예: 파란색 + 주황색, 빨간색 + 초록색.
+          </p>
+          <h4>유사색 조합 (Analogous)</h4>
+          <p>
+            색상환에서 인접한 색상끼리 조합하면 조화롭고 부드러운 인상을 줍니다.
+            예: 파란색 + 청록색 + 초록색. 자연에서 영감을 받은 편안한 팔찌에 적합합니다.
+          </p>
+          <h4>단색 톤 변화 (Monochrome)</h4>
+          <p>
+            한 색상의 명도/채도 변화를 사용하면 세련되고 통일감 있는 디자인이 됩니다.
+            예: 진한 파란색 + 중간 파란색 + 연한 파란색.
+          </p>
+          <div class="info-box">
+            <p><i class="fa-solid fa-lightbulb"></i> Palzzi의 색상 프리셋 기능으로 여러 조합을 자유롭게 시도해 보세요. 실제 실을 구매하기 전에 시뮬레이터에서 미리 확인할 수 있습니다.</p>
+          </div>
+        </section>
+
+        <!-- FAQ -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-circle-question"></i> 자주 묻는 질문 (FAQ)</h3>
+
+          <div class="faq-item">
+            <h4>Q. Palzzi는 무료인가요?</h4>
+            <p>네, Palzzi의 모든 기능은 무료로 제공됩니다. 회원가입 없이도 시뮬레이터를 사용할 수 있으며, Google 로그인 시 패턴 저장 및 공유 기능이 추가됩니다.</p>
+          </div>
+
+          <div class="faq-item">
+            <h4>Q. 설치 없이 사용할 수 있나요?</h4>
+            <p>네, Palzzi는 웹 브라우저에서 바로 동작합니다. Chrome, Firefox, Safari, Edge 등 주요 브라우저를 모두 지원하며, 별도 프로그램 설치가 필요 없습니다.</p>
+          </div>
+
+          <div class="faq-item">
+            <h4>Q. 쿠미히모 경험이 없어도 사용할 수 있나요?</h4>
+            <p>물론입니다! Palzzi는 초보자도 쉽게 사용할 수 있도록 직관적인 인터페이스를 제공합니다. 템플릿을 선택하고 색상을 지정한 후 'Weave' 버튼을 누르면 자동으로 매듭이 완성됩니다. 실제 마루다이 도구가 없어도 쿠미히모 패턴을 경험할 수 있습니다.</p>
+          </div>
+
+          <div class="faq-item">
+            <h4>Q. 만든 패턴을 실제 팔찌로 만들 수 있나요?</h4>
+            <p>네! Palzzi의 2D 도안 차트를 참고하여 실제 실로 팔찌를 만들 수 있습니다. 도안을 PNG로 내보낼 수 있어 인쇄하여 참고할 수도 있습니다.</p>
+          </div>
+
+          <div class="faq-item">
+            <h4>Q. 모바일에서도 사용할 수 있나요?</h4>
+            <p>네, Palzzi는 반응형 디자인으로 모바일 브라우저에서도 사용할 수 있습니다. 다만, 정확한 조작을 위해 데스크톱 또는 태블릿 사용을 권장합니다.</p>
+          </div>
+
+          <div class="faq-item">
+            <h4>Q. 패턴은 어떻게 공유할 수 있나요?</h4>
+            <p>패턴을 갤러리에 저장한 후 '공유' 버튼을 누르면 고유 URL이 생성됩니다. 이 링크를 복사하여 친구나 소셜 미디어에 공유할 수 있습니다. 링크를 받은 사람은 동일한 패턴을 시뮬레이터에서 열어볼 수 있습니다.</p>
+          </div>
+        </section>
+
+        <!-- 연락처 -->
+        <section class="content-section">
+          <h3><i class="fa-solid fa-envelope"></i> 문의하기</h3>
+          <p>
+            Palzzi에 대한 문의, 제안, 버그 신고는 아래 이메일로 연락해 주세요.
+          </p>
+          <p>
+            <i class="fa-solid fa-envelope"></i>
+            <strong>palzzilab@gmail.com</strong>
+          </p>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- ─────────── English Content ─────────── -->
+    <div class="content-en">
+      <main class="content-area">
+
+        <div class="page-header">
+          <h2>About Palzzi</h2>
+          <p class="subtitle">Design and share Kumihimo bracelets online</p>
+        </div>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-sparkles"></i> What is Palzzi?</h3>
+          <p>
+            <strong>Palzzi</strong> is a web-based bracelet design tool that reimagines
+            the traditional Japanese braiding craft of <strong>Kumihimo</strong> for the
+            modern era. You can weave complex braid patterns, preview the finished result
+            in 3D, and share your designs with the community — all from your browser.
+          </p>
+          <p>
+            Traditional Kumihimo patterns required paper charts or dedicated software,
+            but Palzzi works directly in the browser, so anyone can design bracelet
+            patterns without installing anything.
+          </p>
+          <div class="info-box">
+            <p><i class="fa-solid fa-lightbulb"></i> Palzzi is completely free. You can use the simulator without creating an account.</p>
+          </div>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-circle-info"></i> What is Kumihimo?</h3>
+          <p>
+            Kumihimo (組み紐) is a traditional Japanese braiding craft where multiple
+            strands of thread are crossed in a specific sequence to create intricate
+            braids. With over a thousand years of history, this craft was originally
+            used for armor cords, obijime (帯締め), and ornamental accessories.
+          </p>
+          <p>
+            Today, Kumihimo is widely enjoyed as a hobby craft for making bracelets,
+            necklaces, keychains, and other accessories. The most popular method uses
+            a <strong>Marudai</strong> — a round stand with a disk where threads are
+            moved according to a pattern.
+          </p>
+          <p>
+            Palzzi digitizes this Kumihimo structure, letting you preview patterns
+            before physically braiding and freely experiment with color combinations.
+          </p>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Key Features</h3>
+          <ul>
+            <li><strong>Interactive Disk Simulator:</strong> Move threads on a virtual Marudai disk to weave patterns. Intuitive click-based interface for beginners.</li>
+            <li><strong>3D Braid Preview:</strong> See your pattern in real-time 3D. Rotate and zoom to view from any angle.</li>
+            <li><strong>2D Pattern Charts:</strong> View the braid structure as a chart and export as PNG for reference during physical crafting.</li>
+            <li><strong>Multiple Templates:</strong> Choose from 8-strand beginner to 12+ strand advanced disk templates.</li>
+            <li><strong>Color Customization:</strong> Hundreds of preset colors plus a custom color picker for your own combinations.</li>
+            <li><strong>Pattern Gallery:</strong> Save designs to the gallery and browse other users' creations. Like your favorites.</li>
+            <li><strong>Share Links:</strong> Generate a unique URL for any pattern and share it with friends.</li>
+            <li><strong>Multilingual:</strong> Available in Korean and English.</li>
+          </ul>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-book-open"></i> How to Use</h3>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <p><strong>Choose a Template:</strong> Select a disk template from the top bar. Options range from 8-strand beginner to 12+ strand advanced templates.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>Set Colors:</strong> Click on thread slots on the disk or the color list to assign colors. Choose from presets or create custom colors.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>Weave:</strong> Press the 'Weave' button to start braiding. Step through one move at a time, or use auto-play to complete the pattern.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>Preview in 3D / 2D:</strong> Switch between the 3D braid view and 2D chart in the right panel. Rotate and zoom the 3D view for different angles.</p>
+            </div>
+            <div class="guide-step">
+              <p><strong>Save & Share:</strong> When you're happy with a pattern, save it to the gallery and copy the share link to show others.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-palette"></i> Thread Types</h3>
+          <h4>Embroidery Thread</h4>
+          <p>The most popular Kumihimo thread. Lustrous, available in hundreds of colors, and ideal for detailed patterns. Size 25wt is most commonly used.</p>
+          <h4>Macramé Cord</h4>
+          <p>Thicker and more textured than embroidery thread. Great for chunky bracelets and keychains. Cotton varieties give a natural look.</p>
+          <h4>Silk Thread</h4>
+          <p>Premium luster and soft texture. Traditionally used in Kumihimo for luxury accessories. Higher cost and requires careful handling.</p>
+          <h4>Synthetic Fiber</h4>
+          <p>Nylon and polyester threads are durable and affordable. Available in various thicknesses and textures, suitable for everyday accessories.</p>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-swatchbook"></i> Color Combination Tips</h3>
+          <h4>Complementary</h4>
+          <p>Colors opposite on the color wheel create bold, eye-catching bracelets. Example: blue + orange, red + green.</p>
+          <h4>Analogous</h4>
+          <p>Adjacent colors on the color wheel produce harmonious, soothing designs. Example: blue + teal + green.</p>
+          <h4>Monochrome</h4>
+          <p>Variations in lightness and saturation of a single color create elegant, unified designs. Example: dark blue + medium blue + light blue.</p>
+          <div class="info-box">
+            <p><i class="fa-solid fa-lightbulb"></i> Use Palzzi's color presets to try different combinations freely — preview them in the simulator before buying actual thread.</p>
+          </div>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-circle-question"></i> FAQ</h3>
+          <div class="faq-item">
+            <h4>Q. Is Palzzi free?</h4>
+            <p>Yes, all features are free. No account required for the simulator. Sign in with Google to save and share patterns.</p>
+          </div>
+          <div class="faq-item">
+            <h4>Q. Do I need to install anything?</h4>
+            <p>No. Palzzi runs directly in your browser — Chrome, Firefox, Safari, and Edge are all supported.</p>
+          </div>
+          <div class="faq-item">
+            <h4>Q. Can I use it without Kumihimo experience?</h4>
+            <p>Absolutely! Palzzi is designed for beginners. Pick a template, set colors, and press Weave — the pattern completes automatically.</p>
+          </div>
+          <div class="faq-item">
+            <h4>Q. Can I make a real bracelet from the patterns?</h4>
+            <p>Yes! Use the 2D chart as a guide for physical braiding. You can export the chart as a PNG to print for reference.</p>
+          </div>
+          <div class="faq-item">
+            <h4>Q. Does it work on mobile?</h4>
+            <p>Yes, Palzzi is responsive and works on mobile browsers. However, a desktop or tablet is recommended for the best experience.</p>
+          </div>
+          <div class="faq-item">
+            <h4>Q. How do I share my patterns?</h4>
+            <p>Save your pattern to the gallery, then click 'Share' to generate a unique URL. Anyone with the link can open the same pattern in the simulator.</p>
+          </div>
+        </section>
+
+        <section class="content-section">
+          <h3><i class="fa-solid fa-envelope"></i> Contact</h3>
+          <p>For questions, suggestions, or bug reports, please email us at:</p>
+          <p><i class="fa-solid fa-envelope"></i> <strong>palzzilab@gmail.com</strong></p>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <nav class="footer-links">
+        <a href="/about" data-i18n="footerAbout">소개</a>
+        <a href="/simulator" data-i18n="footerSimulator">시뮬레이터</a>
+        <a href="/" data-i18n="footerGallery">갤러리</a>
+        <a href="/privacy" data-i18n="footerPrivacy">개인정보처리방침</a>
+        <a href="/terms" data-i18n="footerTerms">이용약관</a>
+      </nav>
+      <p class="footer-copy">© 2025 Palzzi. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <script type="module" src="src/pages.js"></script>
+</body>
+</html>
