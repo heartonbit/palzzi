@@ -365,13 +365,13 @@ function init() {
 function setLanguage(lang) {
   currentLang = lang;
   if (lang === 'ko') {
-    btnLangKo.classList.add('active');
-    btnLangEn.classList.remove('active');
+    btnLangKo?.classList.add('active');
+    btnLangEn?.classList.remove('active');
   } else {
-    btnLangEn.classList.add('active');
-    btnLangKo.classList.remove('active');
+    btnLangEn?.classList.add('active');
+    btnLangKo?.classList.remove('active');
   }
-  langPopup.classList.add('hidden');
+  langPopup?.classList.add('hidden');
 
   // Translate all elements with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -432,16 +432,16 @@ async function fetchPatterns() {
 }
 
 function showState(state) {
-  galleryLoading.classList.add('hidden');
-  galleryEmpty.classList.add('hidden');
-  galleryGrid.classList.add('hidden');
+  galleryLoading?.classList.add('hidden');
+  galleryEmpty?.classList.add('hidden');
+  galleryGrid?.classList.add('hidden');
 
   if (state === 'loading') {
-    galleryLoading.classList.remove('hidden');
+    galleryLoading?.classList.remove('hidden');
   } else if (state === 'empty') {
-    galleryEmpty.classList.remove('hidden');
+    galleryEmpty?.classList.remove('hidden');
   } else if (state === 'grid') {
-    galleryGrid.classList.remove('hidden');
+    galleryGrid?.classList.remove('hidden');
   }
 }
 
@@ -758,12 +758,12 @@ function hideDetail() {
 // --- Event Listeners ---
 function setupEventListeners() {
   // Language toggle
-  btnLangToggle.addEventListener('click', (e) => {
+  btnLangToggle?.addEventListener('click', (e) => {
     e.stopPropagation();
     langPopup.classList.toggle('hidden');
   });
-  btnLangKo.addEventListener('click', () => setLanguage('ko'));
-  btnLangEn.addEventListener('click', () => setLanguage('en'));
+  btnLangKo?.addEventListener('click', () => setLanguage('ko'));
+  btnLangEn?.addEventListener('click', () => setLanguage('en'));
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#lang-selector')) {
       langPopup.classList.add('hidden');
@@ -771,10 +771,10 @@ function setupEventListeners() {
   });
 
   // Close detail panel
-  btnCloseDetail.addEventListener('click', hideDetail);
+  btnCloseDetail?.addEventListener('click', hideDetail);
 
   // Load pattern to simulator
-  btnLoadSimulator.addEventListener('click', () => {
+  btnLoadSimulator?.addEventListener('click', () => {
     if (!selectedPattern) return;
     const style = selectedPattern.style || 'kumihimo';
     if (style === 'misanga') {
@@ -785,7 +785,7 @@ function setupEventListeners() {
   });
 
   // Delete pattern
-  btnDeletePattern.addEventListener('click', async () => {
+  btnDeletePattern?.addEventListener('click', async () => {
     if (!selectedPattern) return;
     if (!currentUser) {
       const t = TRANSLATIONS[currentLang];

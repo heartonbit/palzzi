@@ -180,9 +180,11 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 50%;
+  border: none;
   background-color: var(--primary-color);
   color: white;
   font-size: 14px;
+  cursor: pointer;
   text-decoration: none;
   transition: all 0.2s ease;
 }
